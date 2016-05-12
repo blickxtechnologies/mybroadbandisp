@@ -5,4 +5,4 @@ before_script:
   - npm install -g bower
   - npm install -g gulp
   - bower install
-  - gulp release
+script: gulp
