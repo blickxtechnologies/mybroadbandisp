@@ -359,7 +359,7 @@ gulp.task('default', function(callback) {
 
 // 8. -------------------- RELEASE --------------------------
 
-var release_dir = '../../_release/'+version+'/',
+var release_dir = '_release/'+version+'/',
     release_doc_dir = release_dir + '/altair_v'+version+'/documentation/',
     release_dist_dir = release_dir + '/altair_v'+version+'/admin/html/dist/',
     release_angular_dir = release_dir + '/altair_v'+version+'/admin/angular/',
