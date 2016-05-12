@@ -15,12 +15,6 @@ deploy:
   upload-dir: travis-builds
   region: ap-southeast-1
   local_dir: _release
-
-cache:
-  directories:
-  - bower_components
-  - node_modules
-
  notifications:
   email:
     - kishore.sanke@gmail.com
