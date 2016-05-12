@@ -54,7 +54,6 @@
         "datatables-tabletools": "~2.2.4",
         "dense": "*",
         "fastclick": "~1.0.6",
-        "fullcalendar": "~2.4.0",
         "hammerjs": "~2.0.4",
         "ion.rangeslider": "ionrangeslider#~2.1.1",
         "jquery": "~2.1.4",
@@ -98,6 +97,7 @@
         "jquery": ">=2.1.4",
         "fastclick": "~1.0.6",
         "angular": ">=1.4.0",
-        "lodash": "<=4.X"
+        "lodash": "<=4.X",
+        "fullcalendar": "<=2.7.1"
     }
 }
