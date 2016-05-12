@@ -12,7 +12,21 @@ altairApp
             }
         }
     ])
-    .factory('utils', function () {
+    .factory('httpRequestInterceptor', function() {
+        return {
+            request: function(config) {
+
+                // use this to destroying other existing headers
+                config.headers = { 'Authorization': 'Basic dGVzdDp0ZXN0MTIz' }
+
+                // use this to prevent destroying other existing headers
+                // config.headers['Authorization'] = 'authentication';
+
+                return config;
+            }
+        };
+    })
+    .factory('utils', function() {
         return {
             // Util for finding an object by its 'id' property among an array
             findByItemId: function findById(a, id) {
@@ -52,26 +66,26 @@ altairApp
                     localStorage.setItem(test, test);
                     localStorage.removeItem(test);
                     return true;
-                } catch(e) {
+                } catch (e) {
                     return false;
                 }
             },
             // show/hide card
-            card_show_hide: function(card,begin_callback,complete_callback,callback_element) {
+            card_show_hide: function(card, begin_callback, complete_callback, callback_element) {
                 $(card).velocity({
                         scale: 0,
                         opacity: 0.2
                     }, {
                         duration: 400,
-                        easing: [ 0.4,0,0.2,1 ],
+                        easing: [0.4, 0, 0.2, 1],
                         // on begin callback
-                        begin: function () {
+                        begin: function() {
                             if (typeof begin_callback !== 'undefined') {
                                 begin_callback(callback_element);
                             }
                         },
                         // on complete callback
-                        complete: function () {
+                        complete: function() {
                             if (typeof complete_callback !== 'undefined') {
                                 complete_callback(callback_element);
                             }
@@ -80,8 +94,7 @@ altairApp
                     .velocity('reverse');
             }
         };
-    })
-;
+    });
 
 angular
     .module("ConsoleLogger", [])
@@ -89,9 +102,9 @@ angular
     // app.js (run section "PrintToConsole")
     .factory("PrintToConsole", [
         "$rootScope",
-        function ($rootScope) {
+        function($rootScope) {
             var handler = { active: false };
-            handler.toggle = function () { handler.active = !handler.active; };
+            handler.toggle = function() { handler.active = !handler.active; };
 
             if (handler.active) {
                 console.log($state + ' = ' + $state.current.name);
@@ -100,37 +113,37 @@ angular
                 console.log(Card_fullscreen + '=' + card_fullscreen);
             }
 
-            $rootScope.$on('$stateChangeStart', function (event, toState, toParams, fromState, fromParams) {
+            $rootScope.$on('$stateChangeStart', function(event, toState, toParams, fromState, fromParams) {
                 if (handler.active) {
                     console.log("$stateChangeStart --- event, toState, toParams, fromState, fromParams");
                     console.log(arguments);
                 }
             });
-            $rootScope.$on('$stateChangeError', function (event, toState, toParams, fromState, fromParams, error) {
+            $rootScope.$on('$stateChangeError', function(event, toState, toParams, fromState, fromParams, error) {
                 if (handler.active) {
                     console.log("$stateChangeError --- event, toState, toParams, fromState, fromParams, error");
                     console.log(arguments);
                 }
             });
-            $rootScope.$on('$stateChangeSuccess', function (event, toState, toParams, fromState, fromParams) {
+            $rootScope.$on('$stateChangeSuccess', function(event, toState, toParams, fromState, fromParams) {
                 if (handler.active) {
                     console.log("$stateChangeSuccess --- event, toState, toParams, fromState, fromParams");
                     console.log(arguments);
                 }
             });
-            $rootScope.$on('$viewContentLoading', function (event, viewConfig) {
+            $rootScope.$on('$viewContentLoading', function(event, viewConfig) {
                 if (handler.active) {
                     console.log("$viewContentLoading --- event, viewConfig");
                     console.log(arguments);
                 }
             });
-            $rootScope.$on('$viewContentLoaded', function (event) {
+            $rootScope.$on('$viewContentLoaded', function(event) {
                 if (handler.active) {
                     console.log("$viewContentLoaded --- event");
                     console.log(arguments);
                 }
             });
-            $rootScope.$on('$stateNotFound', function (event, unfoundState, fromState, fromParams) {
+            $rootScope.$on('$stateNotFound', function(event, unfoundState, fromState, fromParams) {
                 if (handler.active) {
                     console.log("$stateNotFound --- event, unfoundState, fromState, fromParams");
                     console.log(arguments);
@@ -138,5 +151,4 @@ angular
             });
             return handler;
         }
-    ])
-;
+    ]);

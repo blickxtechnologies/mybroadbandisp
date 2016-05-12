@@ -1,7 +1,8 @@
 /*
-*  Altair Admin AngularJS
-*/
-;"use strict";
+ *  Altair Admin AngularJS
+ */
+;
+"use strict";
 
 var altairApp = angular.module('altairApp', [
     'ui.router',
@@ -11,11 +12,11 @@ var altairApp = angular.module('altairApp', [
     'ngRetina',
     'ConsoleLogger'
 ]);
-
+var baseurl = "http://52.201.190.33:1337";
 altairApp.constant('variables', {
     header__main_height: 48,
-    easing_swiftOut: [ 0.4,0,0.2,1 ],
-    bez_easing_swiftOut: $.bez([ 0.4,0,0.2,1 ])
+    easing_swiftOut: [0.4, 0, 0.2, 1],
+    bez_easing_swiftOut: $.bez([0.4, 0, 0.2, 1])
 });
 
 altairApp.config(function($sceDelegateProvider) {
@@ -24,6 +25,18 @@ altairApp.config(function($sceDelegateProvider) {
         'https://www.youtube.com/**',
         'https://w.soundcloud.com/**'
     ]);
+});
+altairApp.config(function($httpProvider) {
+    $httpProvider.interceptors.push('httpRequestInterceptor');
+});
+
+altairApp.run(function($rootScope) {
+    $rootScope.$on('loading:show', function() {
+        $('#mydiv').show();
+    });
+    $rootScope.$on('loading:hide', function() {
+        $('#mydiv').hide();
+    });
 });
 
 /* Run Block */
@@ -37,12 +50,12 @@ altairApp
         '$timeout',
         'preloaders',
         'variables',
-        function ($rootScope, $state, $stateParams,$http,$window, $timeout,variables) {
+        function($rootScope, $state, $stateParams, $http, $window, $timeout, variables) {
 
             $rootScope.$state = $state;
             $rootScope.$stateParams = $stateParams;
 
-            $rootScope.$on('$stateChangeSuccess', function () {
+            $rootScope.$on('$stateChangeSuccess', function() {
                 // scroll view to top
                 $("html, body").animate({
                     scrollTop: 0
@@ -51,16 +64,16 @@ altairApp
                 $timeout(function() {
                     $rootScope.pageLoading = false;
                     $($window).resize();
-                },300);
+                }, 300);
 
                 $timeout(function() {
                     $rootScope.pageLoaded = true;
                     $rootScope.appInitialized = true;
-                },600);
+                }, 600);
 
             });
 
-            $rootScope.$on('$stateChangeStart', function (event, toState, toParams, fromState, fromParams) {
+            $rootScope.$on('$stateChangeStart', function(event, toState, toParams, fromState, fromParams) {
                 // main search
                 $rootScope.mainSearchActive = false;
                 // single card
@@ -79,12 +92,12 @@ altairApp
                 $rootScope.sidebar_secondary = false;
                 $rootScope.secondarySidebarHiddenLarge = false;
 
-                if($($window).width() < 1220 ) {
+                if ($($window).width() < 1220) {
                     // hide primary sidebar
                     $rootScope.primarySidebarActive = false;
                     $rootScope.hide_content_sidebar = false;
                 }
-                if(!toParams.hasOwnProperty('hidePreloader')) {
+                if (!toParams.hasOwnProperty('hidePreloader')) {
                     $rootScope.pageLoading = true;
                     $rootScope.pageLoaded = false;
                 }
@@ -123,5 +136,4 @@ altairApp
             // app debug
             PrintToConsole.active = false;
         }
-    ])
-;
+    ]);

@@ -1,4 +1,4 @@
-angular
+    angular
     .module('altairApp')
     .controller('dt_default',
         function($compile, $scope, $timeout, $resource, DTOptionsBuilder, DTColumnDefBuilder) {
@@ -24,6 +24,7 @@ angular
                 .query()
                 .$promise
                 .then(function(dt_data) {
+                    console.dir(dt_data);
                     vm.dt_data = dt_data;
                 });
         }

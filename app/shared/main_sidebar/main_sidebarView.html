@@ -2,12 +2,12 @@
     <aside id="sidebar_main" sidebar-primary custom-scrollbar>
         <div class="sidebar_main_header" ng-if="!fullHeaderActive">
             <div class="sidebar_logo">
-                <a ui-sref="restricted.dashboard" ng-show="!miniSidebarActive"><img ng-src="assets/img/logo_main.png" alt="" add-image-prop /></a>
-                <a ui-sref="restricted.dashboard" ng-show="miniSidebarActive"><img ng-src="assets/img/logo_main_small.png" alt="" add-image-prop /></a>
+                <a ui-sref="restricted.customer" ng-show="!miniSidebarActive"><img ng-src="assets/img/logo.png" alt="" add-image-prop /></a>
+                <a ui-sref="restricted.customer" ng-show="miniSidebarActive"><img ng-src="assets/img/logo_main_small.png" alt="" add-image-prop /></a>
             </div>
-            <div class="sidebar_actions">
+            <!-- <div class="sidebar_actions">
                 <selectize id="lang_switcher" name="lang_switcher" config='langSwitcherConfig' options='langSwitcherOptions' ng-model="langSwitcherModel"></selectize>
-            </div>
+            </div> -->
         </div>
         <div class="menu_section">
             <ul>

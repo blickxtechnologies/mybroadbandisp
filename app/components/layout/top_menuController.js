@@ -8,7 +8,7 @@ angular
 
             $rootScope.toBarActive = true;
 
-            $rootScope.topMenuActive = true;
+            $rootScope.topMenuActive = false;
 
         }
     ]);

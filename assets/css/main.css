@@ -149,8 +149,10 @@
   display: block !important;
   -webkit-animation: none !important;
   animation: none !important;
-  -webkit-transition: -webkit-transform 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease-in;
+  -webkit-transition: opacity 280ms ease-in, -webkit-transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 280ms ease-in, -webkit-transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
   transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease-in;
+  transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 280ms ease-in, -webkit-transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
   -webkit-transform: scale(0);
   transform: scale(0);
 }
@@ -668,7 +670,9 @@
   display: block;
   color: #727272;
   -webkit-transition: -webkit-transform 280ms;
+  transition: -webkit-transform 280ms;
   transition: transform 280ms;
+  transition: transform 280ms, -webkit-transform 280ms;
 }
 .uk-accordion-title.uk-active:after {
   -webkit-transform: rotate(-180deg);
@@ -2477,7 +2481,9 @@ a.uk-datepicker-table-muted {
   -webkit-transform: scale(0);
   transform: scale(0);
   -webkit-transition: top 400ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, -webkit-transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: top 400ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, -webkit-transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
   transition: top 400ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: top 400ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, transform 400ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .content-preloader .regular-preloader {
   position: relative;
@@ -2492,7 +2498,9 @@ a.uk-datepicker-table-muted {
   -webkit-transform: scale(1);
   transform: scale(1);
   -webkit-transition: top 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 400ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
+  transition: top 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 400ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
   transition: top 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 400ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
+  transition: top 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 400ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, -webkit-transform 400ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
 }
 body > .content-preloader {
   position: fixed;
@@ -2944,57 +2952,73 @@ body > .content-preloader.preloader-active {
   right: 0;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-child(1) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-last-child(2) {
   bottom: 64px;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-child(2) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-last-child(3) {
   bottom: 128px;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-child(3) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-last-child(4) {
   bottom: 192px;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-child(4) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-last-child(5) {
   bottom: 256px;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-child(5) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-last-child(6) {
   bottom: 320px;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-child(6) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-last-child(7) {
   bottom: 384px;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-child(7) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-last-child(8) {
   bottom: 448px;
 }
 .md-fab-speed-dial .md-fab-wrapper-small .md-fab-small:nth-child(8) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms;
 }
 .md-fab-speed-dial.md-fab-active .md-fab-small {
   -webkit-transform: scale(1);
@@ -3003,36 +3027,52 @@ body > .content-preloader.preloader-active {
   z-index: 10;
 }
 .md-fab-speed-dial.md-fab-active .md-fab-small:nth-last-child(1) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 50ms;
 }
 .md-fab-speed-dial.md-fab-active .md-fab-small:nth-last-child(2) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 100ms;
 }
 .md-fab-speed-dial.md-fab-active .md-fab-small:nth-last-child(3) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 150ms;
 }
 .md-fab-speed-dial.md-fab-active .md-fab-small:nth-last-child(4) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 200ms;
 }
 .md-fab-speed-dial.md-fab-active .md-fab-small:nth-last-child(5) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 250ms;
 }
 .md-fab-speed-dial.md-fab-active .md-fab-small:nth-last-child(6) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 300ms;
 }
 .md-fab-speed-dial.md-fab-active .md-fab-small:nth-last-child(7) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 350ms;
 }
 .md-fab-speed-dial.md-fab-active .md-fab-small:nth-last-child(8) {
-  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms;
+  -webkit-transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms;
   transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms;
+  transition: box-shadow 280ms cubic-bezier(0.4, 0, 0.2, 1), transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, opacity 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms, -webkit-transform 100ms cubic-bezier(0.4, 0, 0.2, 1) 400ms;
 }
 .md-fab-toolbar {
   -webkit-transition: all 280ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -6809,7 +6849,6 @@ pre[class*="language-"] {
   -o-tab-size: 4;
   tab-size: 4;
   -webkit-hyphens: none;
-  -moz-hyphens: none;
   -ms-hyphens: none;
   hyphens: none;
 }
@@ -9485,7 +9524,9 @@ div.ganttview .ui-resizable-w {
   display: block;
   color: #727272;
   -webkit-transition: -webkit-transform 280ms;
+  transition: -webkit-transform 280ms;
   transition: transform 280ms;
+  transition: transform 280ms, -webkit-transform 280ms;
 }
 #sidebar_main .sidebar_main_header {
   height: 89px;

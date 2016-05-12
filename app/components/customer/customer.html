@@ -1,0 +1,71 @@
+<div id="page_content">
+    <div id="page_content_inner">
+        <h3 class="heading_b uk-margin-bottom">Customer Serarch</h3>
+        <div class="md-card uk-margin-medium-bottom">
+            <div class="md-card-content large-padding">
+                <form id="search_validation" class="uk-form-stacked">
+                    <div class="uk-grid" data-uk-grid-margin>
+                        <div class="uk-width-medium-1-2">
+                            <div class="parsley-row">
+                                <label for="fullname">Applicant's Name</label>
+                                <input id="fullname" type="text" name="fullname" ng-model="applicant_name" class="md-input" ng-keypress="handleEnter($event, applicant_name,applicant_number)" md-input />
+                            </div>
+                        </div>
+                        <div class="uk-width-medium-1-2">
+                            <div class="parsley-row">
+                                <label for="applicationnum">Application Number</label>
+                                <input id="applicationnum" type="text" ng-model="applicant_number" name="applicationnum" ng-keypress="handleEnter($event, applicant_name,applicant_number)" class="md-input" md-input />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="uk-grid">
+                        <div class="uk-width-1-1">
+                            <button type="button" ng-click="Search(applicant_name,applicant_number)" class="md-btn md-btn-primary">Search</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <h3 class="heading_b uk-margin-bottom">Search Result</h3>
+        <div class="md-card uk-margin-medium-bottom">
+            <div class="md-card-content">
+                <table datatable="ng" dt-options="showCase.dtOptions" dt-column-defs="showCase.dtColumnDefs" class="uk-table" cellspacing="0" width="100%">
+                    <thead>
+                        <tr>
+                            <th>Application Number</th>
+                            <th>Applicant's Name</th>
+                            <th>Mobile Number</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr ng-repeat="item in customer">
+                            <td>{{item.applicationNumber}}</td>
+                            <td>{{item.applicantName}}</td>
+                            <td>{{item.connMobile}}</td>
+                            <td>{{item.connEmail}}</td>
+                            <td><span ng-class="{'uk-badge':item.status ==='New', 'uk-badge uk-badge-primary':item.status === 'Verified', 'uk-badge-success':item.status === 'Installed', 'uk-badge-warning':item.status ==='Activated'}" ng-bind="item.status"></span></td>
+                            <td>
+                                <div class="uk-width-medium-1-4">
+                                    <div class="uk-button-dropdown" data-uk-dropdown="{mode:'click'}">
+                                        <i class="md-icon material-icons">&#xE254;</i>
+                                        <div class="uk-dropdown uk-dropdown-small">
+                                            <ul class="uk-nav">
+                                                <li><a ui-sref="restricted.user_edit({account_id:item.applicationId})">Edit</a></li>
+                                                <li><a ng-click="verified(item,'Are you sure that Customer is Verified ?')">Verified</a></li>
+                                                <li><a ng-click="installed(item,'Are you sure that Customer Connection is Installed ?')">Installed</a></li>
+                                                <li><a ng-click="activated(item,'Do you want to activate Customer ?')">Activated</a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

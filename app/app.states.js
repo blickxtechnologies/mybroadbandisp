@@ -2,7 +2,20 @@ altairApp
     .config([
         '$stateProvider',
         '$urlRouterProvider',
-        function ($stateProvider, $urlRouterProvider) {
+        '$httpProvider',
+        function($stateProvider, $urlRouterProvider, $httpProvider) {
+            $httpProvider.interceptors.push(function($rootScope) {
+                return {
+                    request: function(config) {
+                        $rootScope.$broadcast('loading:show');
+                        return config;
+                    },
+                    response: function(response) {
+                        $rootScope.$broadcast('loading:hide');
+                        return response;
+                    }
+                };
+            });
 
             // Use $urlRouterProvider to configure any redirects (when) and invalid urls (otherwise).
             $urlRouterProvider
@@ -23,7 +36,7 @@ altairApp
                     url: "/500",
                     templateUrl: 'app/components/pages/error_500View.html'
                 })
-            // -- LOGIN PAGE --
+                // -- LOGIN PAGE --
                 .state("login", {
                     url: "/login",
                     templateUrl: 'app/components/pages/loginView.html',
@@ -37,7 +50,7 @@ altairApp
                         }]
                     }
                 })
-            // -- RESTRICTED --
+                // -- RESTRICTED --
                 .state("restricted", {
                     abstract: true,
                     url: "",
@@ -63,11 +76,11 @@ altairApp
                                 'lazy_autosize',
                                 'lazy_iCheck',
                                 'lazy_style_switcher'
-                            ],{ serie: true });
+                            ], { serie: true });
                         }]
                     }
                 })
-            // -- DASHBOARD --
+                // -- DASHBOARD --
                 .state("restricted.dashboard", {
                     url: "/",
                     templateUrl: 'app/components/dashboard/dashboardView.html',
@@ -85,17 +98,17 @@ altairApp
                                 'lazy_google_maps',
                                 'lazy_clndr',
                                 'app/components/dashboard/dashboardController.js'
-                            ], {serie: true} );
+                            ], { serie: true });
                         }],
-                        sale_chart_data: function($http){
-                            return $http({method: 'GET', url: 'data/mg_dashboard_chart.min.json'})
-                                .then(function (data) {
+                        sale_chart_data: function($http) {
+                            return $http({ method: 'GET', url: 'data/mg_dashboard_chart.min.json' })
+                                .then(function(data) {
                                     return data.data;
                                 });
                         },
-                        user_data: function($http){
+                        user_data: function($http) {
                             return $http({ method: 'GET', url: 'data/user_data.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -104,6 +117,49 @@ altairApp
                         pageTitle: 'Dashboard'
                     }
 
+                })
+                // -- Customer Search--
+                .state("restricted.customer", {
+                    url: "/customer",
+                    templateUrl: 'app/components/customer/customer.html',
+                    controller: 'customerCtrl',
+                    resolve: {
+                        deps: ['$ocLazyLoad', function($ocLazyLoad) {
+                            return $ocLazyLoad.load([
+                                'lazy_parsleyjs',
+                                'bower_components/angular-resource/angular-resource.min.js',
+                                'lazy_datatables',
+                                'app/components/customer/customerController.js'
+                            ]);
+                        }]
+                    },
+                    data: {
+                        pageTitle: 'Customer'
+                    }
+                })
+                .state("restricted.user_edit", {
+                    url: "/user_edit/:account_id",
+                    templateUrl: 'app/components/pages/user_editView.html',
+                    controller: 'user_editCtrl',
+                    resolve: {
+                        deps: ['$ocLazyLoad', function($ocLazyLoad) {
+                            return $ocLazyLoad.load([
+                                'app/components/pages/user_editController.js'
+                            ]);
+                        }],
+                        user_data: function($http, $stateParams) {
+                            return $http.get(baseurl + '/newcustomerapplication/' + $stateParams.account_id).
+                            then(function(response) {
+                                    return response.data;
+                                },
+                                function(response) {
+                                    alertify.alert("Fatal error: Unable to process this customer profile.");
+                                });
+                        }
+                    },
+                    data: {
+                        pageTitle: 'User edit'
+                    }
                 })
                 // -- FORMS --
                 .state("restricted.forms", {
@@ -135,7 +191,7 @@ altairApp
                                 'lazy_masked_inputs',
                                 'lazy_character_counter',
                                 'app/components/forms/advancedController.js'
-                            ], {serie:true} );
+                            ], { serie: true });
                         }]
                     },
                     data: {
@@ -180,7 +236,7 @@ altairApp
                             return $ocLazyLoad.load([
                                 'lazy_wizard',
                                 'app/components/forms/wizardController.js'
-                            ], {serie:true});
+                            ], { serie: true });
                         }]
                     },
                     data: {
@@ -196,7 +252,7 @@ altairApp
                             return $ocLazyLoad.load([
                                 'lazy_ckeditor',
                                 'app/components/forms/wysiwyg_ckeditorController.js'
-                            ], {serie:true});
+                            ], { serie: true });
                         }]
                     },
                     data: {
@@ -212,7 +268,7 @@ altairApp
                             return $ocLazyLoad.load([
                                 'lazy_tinymce',
                                 'app/components/forms/wysiwyg_tinymceController.js'
-                            ], {serie:true});
+                            ], { serie: true });
                         }]
                     },
                     data: {
@@ -221,7 +277,7 @@ altairApp
                 })
 
             // -- LAYOUT --
-                .state("restricted.layout", {
+            .state("restricted.layout", {
                     url: "/layout",
                     template: '<div ui-view autoscroll="false"/>',
                     abstract: true
@@ -254,7 +310,7 @@ altairApp
                 })
 
             // -- KENDO UI --
-                .state("restricted.kendoui", {
+            .state("restricted.kendoui", {
                     url: "/kendoui",
                     template: '<div ui-view autoscroll="false"/>',
                     abstract: true,
@@ -441,7 +497,7 @@ altairApp
                         pageTitle: 'Window (kendoUI)'
                     }
                 })
-            // -- COMPONENTS --
+                // -- COMPONENTS --
                 .state("restricted.components", {
                     url: "/components",
                     template: '<div ui-view autoscroll="false"/>',
@@ -592,7 +648,7 @@ altairApp
                             return $ocLazyLoad.load([
                                 'lazy_dragula',
                                 'app/components/components/sortableController.js'
-                            ], {serie:true} );
+                            ], { serie: true });
                         }]
                     },
                     data: {
@@ -634,7 +690,7 @@ altairApp
                         pageTitle: 'Typography (components)'
                     }
                 })
-            // -- E-COMMERCE --
+                // -- E-COMMERCE --
                 .state("restricted.ecommerce", {
                     url: "/ecommerce",
                     template: '<div ui-view autoscroll="false"/>',
@@ -675,9 +731,9 @@ altairApp
                     templateUrl: 'app/components/ecommerce/products_listView.html',
                     controller: 'products_listCtrl',
                     resolve: {
-                        products_data: function($http){
-                            return $http({method: 'GET', url: 'data/ecommerce_products.json'})
-                                .then(function (data) {
+                        products_data: function($http) {
+                            return $http({ method: 'GET', url: 'data/ecommerce_products.json' })
+                                .then(function(data) {
                                     return data.data;
                                 });
                         },
@@ -685,7 +741,7 @@ altairApp
                             return $ocLazyLoad.load([
                                 'lazy_pagination',
                                 'app/components/ecommerce/products_listController.js'
-                            ], { serie: true } );
+                            ], { serie: true });
                         }]
                     },
                     data: {
@@ -697,23 +753,23 @@ altairApp
                     templateUrl: 'app/components/ecommerce/products_gridView.html',
                     controller: 'products_gridCtrl',
                     resolve: {
-                        products_data: function($http){
-                            return $http({method: 'GET', url: 'data/ecommerce_products.json'})
-                                .then(function (data) {
+                        products_data: function($http) {
+                            return $http({ method: 'GET', url: 'data/ecommerce_products.json' })
+                                .then(function(data) {
                                     return data.data;
                                 });
                         },
                         deps: ['$ocLazyLoad', function($ocLazyLoad) {
                             return $ocLazyLoad.load([
                                 'app/components/ecommerce/products_gridController.js'
-                            ], { serie: true } );
+                            ], { serie: true });
                         }]
                     },
                     data: {
                         pageTitle: 'Products Grid'
                     }
                 })
-            // -- PLUGINS --
+                // -- PLUGINS --
                 .state("restricted.plugins", {
                     url: "/plugins",
                     template: '<div ui-view autoscroll="false"/>',
@@ -762,29 +818,29 @@ altairApp
                                 'lazy_charts_metricsgraphics',
                                 'lazy_charts_c3',
                                 'app/components/plugins/chartsController.js'
-                            ], {serie: true});
+                            ], { serie: true });
                         }],
-                        mg_chart_linked_1: function($http){
+                        mg_chart_linked_1: function($http) {
                             return $http({ method: 'GET', url: 'data/mg_brief-1.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         },
-                        mg_chart_linked_2: function($http){
+                        mg_chart_linked_2: function($http) {
                             return $http({ method: 'GET', url: 'data/mg_brief-2.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         },
-                        mg_confidence_band: function($http){
+                        mg_confidence_band: function($http) {
                             return $http({ method: 'GET', url: 'data/mg_confidence_band.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         },
-                        mg_currency: function($http){
+                        mg_currency: function($http) {
                             return $http({ method: 'GET', url: 'data/mg_some_currency.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -818,7 +874,7 @@ altairApp
                             return $ocLazyLoad.load([
                                 'lazy_diff',
                                 'app/components/plugins/diff_viewController.js'
-                            ],{serie:true});
+                            ], { serie: true });
                         }]
                     },
                     data: {
@@ -865,11 +921,11 @@ altairApp
                             return $ocLazyLoad.load([
                                 'lazy_tablesorter',
                                 'app/components/plugins/tablesorterController.js'
-                            ],{serie:true});
+                            ], { serie: true });
                         }],
-                        ts_data: function($http){
+                        ts_data: function($http) {
                             return $http({ method: 'GET', url: 'data/tablesorter.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -896,7 +952,7 @@ altairApp
                 })
 
             // -- PAGES --
-                .state("restricted.pages", {
+            .state("restricted.pages", {
                     url: "/pages",
                     template: '<div ui-view autoscroll="false" ng-class="{ \'uk-height-1-1\': page_full_height }" />',
                     abstract: true
@@ -931,11 +987,11 @@ altairApp
                         deps: ['$ocLazyLoad', function($ocLazyLoad) {
                             return $ocLazyLoad.load([
                                 'app/components/pages/contact_listController.js'
-                            ],{serie: true});
+                            ], { serie: true });
                         }],
-                        contact_list: function($http){
+                        contact_list: function($http) {
                             return $http({ method: 'GET', url: 'data/contact_list.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -952,7 +1008,7 @@ altairApp
                         deps: ['$ocLazyLoad', function($ocLazyLoad) {
                             return $ocLazyLoad.load([
                                 'app/components/pages/galleryController.js'
-                            ],{serie: true});
+                            ], { serie: true });
                         }]
                     },
                     data: {
@@ -967,11 +1023,11 @@ altairApp
                         deps: ['$ocLazyLoad', function($ocLazyLoad) {
                             return $ocLazyLoad.load([
                                 'app/components/pages/helpController.js'
-                            ],{serie: true});
+                            ], { serie: true });
                         }],
-                        help_data: function($http){
+                        help_data: function($http) {
                             return $http({ method: 'GET', url: 'data/help_faq.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -989,9 +1045,9 @@ altairApp
                         deps: ['$ocLazyLoad', function($ocLazyLoad) {
                             return $ocLazyLoad.load('app/components/pages/invoicesController.js');
                         }],
-                        invoices_data: function($http){
+                        invoices_data: function($http) {
                             return $http({ method: 'GET', url: 'data/invoices_data.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -1037,9 +1093,9 @@ altairApp
                         deps: ['$ocLazyLoad', function($ocLazyLoad) {
                             return $ocLazyLoad.load('app/components/pages/mailboxController.js');
                         }],
-                        messages: function($http){
+                        messages: function($http) {
                             return $http({ method: 'GET', url: 'data/mailbox_data.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -1058,9 +1114,9 @@ altairApp
                                 'app/components/pages/notesController.js'
                             ]);
                         }],
-                        notes_data: function($http){
+                        notes_data: function($http) {
                             return $http({ method: 'GET', url: 'data/notes_data.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -1085,11 +1141,11 @@ altairApp
                             return $ocLazyLoad.load([
                                 'lazy_dragula',
                                 'app/components/pages/scrum_boardController.js'
-                            ],{serie: true});
+                            ], { serie: true });
                         }],
-                        tasks_list: function($http){
+                        tasks_list: function($http) {
                             return $http({ method: 'GET', url: 'data/tasks_list.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -1121,9 +1177,9 @@ altairApp
                                 'app/components/pages/snippetsController.js'
                             ]);
                         }],
-                        snippets_data: function($http){
+                        snippets_data: function($http) {
                             return $http({ method: 'GET', url: 'data/snippets.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -1142,9 +1198,9 @@ altairApp
                                 'app/components/pages/todoController.js'
                             ]);
                         }],
-                        todo_data: function($http){
+                        todo_data: function($http) {
                             return $http({ method: 'GET', url: 'data/todo_data.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -1163,9 +1219,9 @@ altairApp
                                 'app/components/pages/user_profileController.js'
                             ]);
                         }],
-                        user_data: function($http){
+                        user_data: function($http) {
                             return $http({ method: 'GET', url: 'data/user_data.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -1174,47 +1230,47 @@ altairApp
                         pageTitle: 'User profile'
                     }
                 })
-                .state("restricted.pages.user_edit", {
-                    url: "/user_edit",
-                    templateUrl: 'app/components/pages/user_editView.html',
-                    controller: 'user_editCtrl',
-                    resolve: {
-                        deps: ['$ocLazyLoad', function($ocLazyLoad) {
-                            return $ocLazyLoad.load([
-                                'app/components/pages/user_editController.js'
-                            ]);
-                        }],
-                        user_data: function($http){
-                            return $http({ method: 'GET', url: 'data/user_data.json' })
-                                .then(function (data) {
-                                    return data.data;
-                                });
-                        },
-                        groups_data: function($http){
-                            return $http({ method: 'GET', url: 'data/groups_data.json' })
-                                .then(function (data) {
-                                    return data.data;
-                                });
-                        }
-                    },
-                    data: {
-                        pageTitle: 'User edit'
-                    }
-                })
+                // .state("restricted.pages.user_edit", {
+                //     url: "/user_edit/",
+                //     templateUrl: 'app/components/pages/user_editView.html',
+                //     controller: 'user_editCtrl',
+                //     resolve: {
+                //         deps: ['$ocLazyLoad', function($ocLazyLoad) {
+                //             return $ocLazyLoad.load([
+                //                 'app/components/pages/user_editController.js'
+                //             ]);
+                //         }],
+                //         user_data: function($http) {
+                //             return $http({ method: 'GET', url: 'data/user_data.json' })
+                //                 .then(function(data) {
+                //                     return data.data;
+                //                 });
+                //         },
+                //         groups_data: function($http) {
+                //             return $http({ method: 'GET', url: 'data/groups_data.json' })
+                //                 .then(function(data) {
+                //                     return data.data;
+                //                 });
+                //         }
+                //     },
+                //     data: {
+                //         pageTitle: 'User edit'
+                //     }
+                // })
                 .state("restricted.pages.issues", {
                     url: "/issues",
                     abstract: true,
                     template: '<div ui-view autoscroll="false" ng-class="{ \'uk-height-1-1\': page_full_height }" />',
                     resolve: {
-                        deps: ['$ocLazyLoad', function ($ocLazyLoad) {
+                        deps: ['$ocLazyLoad', function($ocLazyLoad) {
                             return $ocLazyLoad.load([
                                 'lazy_tablesorter',
                                 'app/components/pages/issuesController.js'
                             ]);
                         }],
-                        issues_data: function($http){
+                        issues_data: function($http) {
                             return $http({ method: 'GET', url: 'data/issues.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }
@@ -1246,9 +1302,9 @@ altairApp
                                 'app/components/pages/blogController.js'
                             ]);
                         }],
-                        blog_articles: function($http){
+                        blog_articles: function($http) {
                             return $http({ method: 'GET', url: 'data/blog_articles.json' })
-                                .then(function (data) {
+                                .then(function(data) {
                                     return data.data;
                                 });
                         }

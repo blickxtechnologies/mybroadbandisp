@@ -13811,6 +13811,405 @@ window.Modernizr = (function( window, document, undefined ) {
     return _moment;
 
 }));
+/**
+ * Dense - Device pixel ratio aware images
+ *
+ * @link    http://dense.rah.pw
+ * @license MIT
+ */
+
+/*
+ * Copyright (C) 2013 Jukka Svahn
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/**
+ * @name jQuery
+ * @class
+ */
+
+/**
+ * @name fn
+ * @class
+ * @memberOf jQuery
+ */
+
+(function (factory)
+{
+    'use strict';
+
+    if (typeof define === 'function' && define.amd)
+    {
+        define(['jquery'], factory);
+    }
+    else
+    {
+        factory(window.jQuery || window.Zepto);
+    }
+}(function ($)
+{
+    'use strict';
+
+    /**
+     * An array of checked image URLs.
+     */
+
+    var pathStack = [],
+
+    /**
+     * Methods.
+     */
+
+    methods = {},
+
+    /**
+     * Regular expression to check whether the URL has a protocol.
+     *
+     * Is used to check whether the image URL is external.
+     */
+
+    regexHasProtocol = /^([a-z]:)?\/\//i,
+
+    /**
+     * Regular expression that split extensions from the file.
+     *
+     * Is used to inject the DPR suffix to the name.
+     */
+
+    regexSuffix = /\.\w+$/,
+
+    /**
+     * Device pixel ratio.
+     */
+
+    devicePixelRatio;
+
+    /**
+     * Init is the default method responsible for rendering 
+     * a pixel-ratio-aware images.
+     *
+     * This method is used to select the images that
+     * should display retina-size images on high pixel ratio
+     * devices. Dense defaults to the init method if no
+     * method is specified.
+     *
+     * When attached to an image, the correct image variation is
+     * selected based on the device's pixel ratio. If the image element
+     * defines <code>data-{ratio}x</code> attributes (e.g. data-1x, data-2x, data-3x),
+     * the most appropriate of those is selected.
+     *
+     * If no data-ratio attributes are defined, the retina image is
+     * constructed from the <code>src</code> attribute.
+     * The searched high pixel ratio images follows
+     * a <code>{imageName}_{ratio}x.{ext}</code> naming convention.
+     * For an image found in /path/to/images/image.jpg, the 2x retina
+     * image would be looked from /path/to/images/image_2x.jpg.
+     *
+     * When image is constructed from the src, the image existance is
+     * verified using HTTP HEAD request, if <code>ping</code> option is
+     * <code>true</code>. The check makes sure no HTTP error code is returned,
+     * and that the received content-type is of an image. Vector image formats,
+     * like svg, are skipped based on the file extension.
+     *
+     * This method can also be used to load image in semi-lazy fashion,
+     * and avoid larger extra HTTP requests due to retina replacements.
+     * The data-1x attribute can be used to supstitute the src, making
+     * sure the browser doesn't try to download the normal image variation
+     * before the JavaScript driven behaviour kicks in.
+     *
+     * Some classes are added to the selected elements while Dense is processing
+     * the document. These classes include <code>dense-image</code>, <code>dense-loading</code>
+     * and <code>dense-ready</code>. These classes can be used to style the images,
+     * or hide them while they are being loaded.
+     *
+     * @param {Object} [options={}] Options
+     * @param {Boolean} [options.ping=null] Check image existence. If the default <code>NULL</code> checks local images, <code>FALSE</code> disables checking and <code>TRUE</code> checks even external images cross-domain
+     * @param {String} [options.dimensions=preserve] What to do with the image's <code>width</code> and <code>height</code> attributes. Either <code>update</code>, <code>remove</code> or <code>preserve</code>
+     * @param {String} [options.glue=_] String that glues the retina "nx" suffix to the image. This option can be used to change the naming convention between the two commonly used practices, <code>image@2x.jpg</code> and <code>image_2x.jpg</code>
+     * @param {Array} [options.skipExtensions=['svg']] Skipped image file extensions. There might be situations where you might want to exclude vector image formats
+     * @return {Object} this
+     * @method init
+     * @memberof jQuery.fn.dense
+     * @fires jQuery.fn.dense#denseRetinaReady.dense
+     * @example
+     * $('img').dense({
+     *  ping: false,
+     *  dimension: 'update'
+     * });
+     */
+
+    methods.init = function (options)
+    {
+        options = $.extend({
+            ping: null,
+            dimensions: 'preserve',
+            glue: '_',
+            skipExtensions: ['svg']
+        }, options);
+
+        this.each(function ()
+        {
+            var $this = $(this);
+
+            if (!$this.is('img') || $this.hasClass('dense-image'))
+            {
+                return;
+            }
+
+            $this.addClass('dense-image dense-loading');
+
+            var image = methods.getImageAttribute.call(this),
+                originalImage = $this.attr('src'),
+                ping = false,
+                updateImage;
+
+            if (!image)
+            {
+                if (!originalImage || devicePixelRatio === 1 || $.inArray(originalImage.split('.').pop().split(/[\?\#]/).shift(), options.skipExtensions) !== -1)
+                {
+                    $this.removeClass('dense-image dense-loading');
+                    return;
+                }
+
+                image = originalImage.replace(regexSuffix, function (extension)
+                {
+                    return options.glue + devicePixelRatio + 'x' + extension;
+                });
+
+                ping = options.ping !== false && $.inArray(image, pathStack) === -1 && (options.ping === true || !regexHasProtocol.test(image) || image.indexOf('//'+document.domain) === 0 || image.indexOf(document.location.protocol+'//'+document.domain) === 0);
+            }
+
+            updateImage = function ()
+            {
+                var readyImage = function ()
+                {
+                    $this.removeClass('dense-loading').addClass('dense-ready').trigger('denseRetinaReady.dense');
+                };
+
+                $this.attr('src', image);
+
+                if (options.dimensions === 'update')
+                {
+                    $this.dense('updateDimensions').one('denseDimensionChanged', readyImage);
+                }
+                else
+                {
+                    if (options.dimensions === 'remove')
+                    {
+                        $this.removeAttr('width height');
+                    }
+
+                    readyImage();
+                }
+            };
+
+            if (ping)
+            {
+                $.ajax({
+                    url  : image,
+                    type : 'HEAD'
+                })
+                    .done(function (data, textStatus, jqXHR)
+                    {
+                        var type = jqXHR.getResponseHeader('Content-type');
+
+                        if (!type || type.indexOf('image/') === 0)
+                        {
+                            pathStack.push(image);
+                            updateImage();
+                        }
+                    });
+            }
+            else
+            {
+                updateImage();
+            }
+        });
+
+        return this;
+    };
+
+    /**
+     * Sets an image's width and height attributes to its native values.
+     *
+     * Updates an img element's dimensions to the source image's
+     * real values. This method is asynchronous, so you can not directly
+     * return its values. Instead, use the 'dense-dimensions-updated'
+     * event to detect when the action is done.
+     *
+     * @return {Object} this
+     * @method updateDimensions
+     * @memberof jQuery.fn.dense
+     * @fires jQuery.fn.dense#denseDimensionChanged.dense
+     * @example
+     * var image = $('img').dense('updateDimensions');
+     */
+
+    methods.updateDimensions = function ()
+    {
+        return this.each(function ()
+        {
+            var img, $this = $(this), src = $this.attr('src');
+
+            if (src)
+            {
+                img = new Image();
+                img.src = src;
+
+                $(img).on('load.dense', function ()
+                {
+                    $this.attr({
+                        width: img.width,
+                        height: img.height
+                    }).trigger('denseDimensionChanged.dense');
+                });
+            }
+        });
+    };
+
+    /**
+     * Gets device pixel ratio rounded up to the closest integer.
+     *
+     * @return {Integer} The pixel ratio
+     * @method devicePixelRatio
+     * @memberof jQuery.fn.dense
+     * @example
+     * var ratio = $(window).dense('devicePixelRatio');
+     * alert(ratio);
+     */
+
+    methods.devicePixelRatio = function ()
+    {
+        var pixelRatio = 1;
+
+        if ($.type(window.devicePixelRatio) !== 'undefined')
+        {
+            pixelRatio = window.devicePixelRatio;
+        }
+        else if ($.type(window.matchMedia) !== 'undefined')
+        {
+            $.each([1.3, 2, 3, 4, 5, 6], function (key, ratio)
+            {
+                var mediaQuery = [
+                    '(-webkit-min-device-pixel-ratio: '+ratio+')',
+                    '(min-resolution: '+Math.floor(ratio*96)+'dpi)',
+                    '(min-resolution: '+ratio+'dppx)'
+                ].join(',');
+
+                if (!window.matchMedia(mediaQuery).matches)
+                {
+                    return false;
+                }
+
+                pixelRatio = ratio;
+            });
+        }
+
+        return Math.ceil(pixelRatio);
+    };
+
+    /**
+     * Gets an appropriate URL for the pixel ratio from the data attribute list.
+     *
+     * Selects the most appropriate <code>data-{ratio}x</code> attribute from
+     * the given element's attributes. If the devices pixel ratio is greater
+     * than the largest specified image, the largest one of the available is used.
+     *
+     * @return {String|Boolean} The attribute value
+     * @method getImageAttribute
+     * @memberof jQuery.fn.dense
+     * @example
+     * var image = $('<div data-1x="image.jpg" data-2x="image_2x.jpg" />').dense('getImageAttribute');
+     * $('body').css('background-image', 'url(' + image + ')');
+     */
+
+    methods.getImageAttribute = function ()
+    {
+        var $this = $(this).eq(0), image = false, url;
+
+        for (var i = 1; i <= devicePixelRatio; i++)
+        {
+            url = $this.attr('data-' + i + 'x');
+
+            if (url)
+            {
+                image = url;
+            }
+        }
+
+        return image;
+    };
+
+    devicePixelRatio = methods.devicePixelRatio();
+
+    /**
+     * Dense offers few methods and options that can be used to both customize the
+     * plugin's functionality and return resulting values. All interaction is done through
+     * the <code>$.fn.dense()</code> method, that accepts a called method and its options
+     * object as its arguments. Both arguments are optional, and either one can be omitted.
+     *
+     * @param {String} [method=init] The called method
+     * @param {Object} [options={}] Options passed to the method
+     * @class dense
+     * @memberof jQuery.fn
+     */
+
+    $.fn.dense = function (method, options)
+    {
+        if ($.type(method) !== 'string' || $.type(methods[method]) !== 'function')
+        {
+            options = method;
+            method = 'init';
+        }
+
+        return methods[method].call(this, options);
+    };
+
+    /**
+     * Initialize automatically when document is ready.
+     *
+     * Dense is initialized automatically if the body element
+     * has a <code>dense-retina</code> class.
+     */
+
+    $(function ()
+    {
+        $('body.dense-retina img').dense();
+    });
+
+    /**
+     * This event is invoked when a retina image has finished loading.
+     *
+     * @event jQuery.fn.dense#denseRetinaReady.dense
+     * @type {Object}
+     */
+
+    /**
+     * This event is invoked when an image's dimension values
+     * have been updated by the <code>updateDimensions</code>
+     * method.
+     *
+     * @event jQuery.fn.dense#denseDimensionChanged.dense
+     * @type {Object}
+     */
+}));
+
 ;(function () {
 	'use strict';
 
@@ -20852,6 +21251,7944 @@ return function (global, window, document, undefined) {
     };
 }((window.jQuery || window.Zepto || window), window, document);
 }));
+/*
+ *	jQuery dotdotdot 1.7.4
+ *
+ *	Copyright (c) Fred Heusschen
+ *	www.frebsite.nl
+ *
+ *	Plugin website:
+ *	dotdotdot.frebsite.nl
+ *
+ *	Licensed under the MIT license.
+ *	http://en.wikipedia.org/wiki/MIT_License
+ */
+
+(function( $, undef )
+{
+	if ( $.fn.dotdotdot )
+	{
+		return;
+	}
+
+	$.fn.dotdotdot = function( o )
+	{
+		if ( this.length == 0 )
+		{
+			$.fn.dotdotdot.debug( 'No element found for "' + this.selector + '".' );
+			return this;
+		}
+		if ( this.length > 1 )
+		{
+			return this.each(
+				function()
+				{
+					$(this).dotdotdot( o );
+				}
+			);
+		}
+
+
+		var $dot = this;
+
+		if ( $dot.data( 'dotdotdot' ) )
+		{
+			$dot.trigger( 'destroy.dot' );
+		}
+
+		$dot.data( 'dotdotdot-style', $dot.attr( 'style' ) || '' );
+		$dot.css( 'word-wrap', 'break-word' );
+		if ($dot.css( 'white-space' ) === 'nowrap')
+		{
+			$dot.css( 'white-space', 'normal' );
+		}
+
+		$dot.bind_events = function()
+		{
+			$dot.bind(
+				'update.dot',
+				function( e, c )
+				{
+					$dot.removeClass("is-truncated");
+					e.preventDefault();
+					e.stopPropagation();
+
+					switch( typeof opts.height )
+					{
+						case 'number':
+							opts.maxHeight = opts.height;
+							break;
+
+						case 'function':
+							opts.maxHeight = opts.height.call( $dot[ 0 ] );
+							break;
+
+						default:
+							opts.maxHeight = getTrueInnerHeight( $dot );
+							break;
+					}
+
+					opts.maxHeight += opts.tolerance;
+
+					if ( typeof c != 'undefined' )
+					{
+						if ( typeof c == 'string' || ('nodeType' in c && c.nodeType === 1) )
+						{
+					 		c = $('<div />').append( c ).contents();
+						}
+						if ( c instanceof $ )
+						{
+							orgContent = c;
+						}
+					}
+
+					$inr = $dot.wrapInner( '<div class="dotdotdot" />' ).children();
+					$inr.contents()
+						.detach()
+						.end()
+						.append( orgContent.clone( true ) )
+						.find( 'br' )
+						.replaceWith( '  <br />  ' )
+						.end()
+						.css({
+							'height'	: 'auto',
+							'width'		: 'auto',
+							'border'	: 'none',
+							'padding'	: 0,
+							'margin'	: 0
+						});
+
+					var after = false,
+						trunc = false;
+
+					if ( conf.afterElement )
+					{
+						after = conf.afterElement.clone( true );
+					    after.show();
+						conf.afterElement.detach();
+					}
+
+					if ( test( $inr, opts ) )
+					{
+						if ( opts.wrap == 'children' )
+						{
+							trunc = children( $inr, opts, after );
+						}
+						else
+						{
+							trunc = ellipsis( $inr, $dot, $inr, opts, after );
+						}
+					}
+					$inr.replaceWith( $inr.contents() );
+					$inr = null;
+
+					if ( $.isFunction( opts.callback ) )
+					{
+						opts.callback.call( $dot[ 0 ], trunc, orgContent );
+					}
+
+					conf.isTruncated = trunc;
+					return trunc;
+				}
+
+			).bind(
+				'isTruncated.dot',
+				function( e, fn )
+				{
+					e.preventDefault();
+					e.stopPropagation();
+
+					if ( typeof fn == 'function' )
+					{
+						fn.call( $dot[ 0 ], conf.isTruncated );
+					}
+					return conf.isTruncated;
+				}
+
+			).bind(
+				'originalContent.dot',
+				function( e, fn )
+				{
+					e.preventDefault();
+					e.stopPropagation();
+
+					if ( typeof fn == 'function' )
+					{
+						fn.call( $dot[ 0 ], orgContent );
+					}
+					return orgContent;
+				}
+
+			).bind(
+				'destroy.dot',
+				function( e )
+				{
+					e.preventDefault();
+					e.stopPropagation();
+
+					$dot.unwatch()
+						.unbind_events()
+						.contents()
+						.detach()
+						.end()
+						.append( orgContent )
+						.attr( 'style', $dot.data( 'dotdotdot-style' ) || '' )
+						.data( 'dotdotdot', false );
+				}
+			);
+			return $dot;
+		};	//	/bind_events
+
+		$dot.unbind_events = function()
+		{
+			$dot.unbind('.dot');
+			return $dot;
+		};	//	/unbind_events
+
+		$dot.watch = function()
+		{
+			$dot.unwatch();
+			if ( opts.watch == 'window' )
+			{
+				var $window = $(window),
+					_wWidth = $window.width(),
+					_wHeight = $window.height();
+
+				$window.bind(
+					'resize.dot' + conf.dotId,
+					function()
+					{
+						if ( _wWidth != $window.width() || _wHeight != $window.height() || !opts.windowResizeFix )
+						{
+							_wWidth = $window.width();
+							_wHeight = $window.height();
+
+							if ( watchInt )
+							{
+								clearInterval( watchInt );
+							}
+							watchInt = setTimeout(
+								function()
+								{
+									$dot.trigger( 'update.dot' );
+								}, 100
+							);
+						}
+					}
+				);
+			}
+			else
+			{
+				watchOrg = getSizes( $dot );
+				watchInt = setInterval(
+					function()
+					{
+						if ( $dot.is( ':visible' ) )
+						{
+							var watchNew = getSizes( $dot );
+							if ( watchOrg.width  != watchNew.width ||
+								 watchOrg.height != watchNew.height )
+							{
+								$dot.trigger( 'update.dot' );
+								watchOrg = watchNew;
+							}
+						}
+					}, 500
+				);
+			}
+			return $dot;
+		};
+		$dot.unwatch = function()
+		{
+			$(window).unbind( 'resize.dot' + conf.dotId );
+			if ( watchInt )
+			{
+				clearInterval( watchInt );
+			}
+			return $dot;
+		};
+
+		var	orgContent	= $dot.contents(),
+			opts 		= $.extend( true, {}, $.fn.dotdotdot.defaults, o ),
+			conf		= {},
+			watchOrg	= {},
+			watchInt	= null,
+			$inr		= null;
+
+
+		if ( !( opts.lastCharacter.remove instanceof Array ) )
+		{
+			opts.lastCharacter.remove = $.fn.dotdotdot.defaultArrays.lastCharacter.remove;
+		}
+		if ( !( opts.lastCharacter.noEllipsis instanceof Array ) )
+		{
+			opts.lastCharacter.noEllipsis = $.fn.dotdotdot.defaultArrays.lastCharacter.noEllipsis;
+		}
+
+
+		conf.afterElement	= getElement( opts.after, $dot );
+		conf.isTruncated	= false;
+		conf.dotId			= dotId++;
+
+
+		$dot.data( 'dotdotdot', true )
+			.bind_events()
+			.trigger( 'update.dot' );
+
+		if ( opts.watch )
+		{
+			$dot.watch();
+		}
+
+		return $dot;
+	};
+
+
+	//	public
+	$.fn.dotdotdot.defaults = {
+		'ellipsis'			: '... ',
+		'wrap'				: 'word',
+		'fallbackToLetter'	: true,
+		'lastCharacter'		: {},
+		'tolerance'			: 0,
+		'callback'			: null,
+		'after'				: null,
+		'height'			: null,
+		'watch'				: false,
+		'windowResizeFix'	: true
+	};
+	$.fn.dotdotdot.defaultArrays = {
+		'lastCharacter'		: {
+			'remove'			: [ ' ', '\u3000', ',', ';', '.', '!', '?' ],
+			'noEllipsis'		: []
+		}
+	};
+	$.fn.dotdotdot.debug = function( msg ) {};
+
+
+	//	private
+	var dotId = 1;
+
+	function children( $elem, o, after )
+	{
+		var $elements 	= $elem.children(),
+			isTruncated	= false;
+
+		$elem.empty();
+
+		for ( var a = 0, l = $elements.length; a < l; a++ )
+		{
+			var $e = $elements.eq( a );
+			$elem.append( $e );
+			if ( after )
+			{
+				$elem.append( after );
+			}
+			if ( test( $elem, o ) )
+			{
+				$e.remove();
+				isTruncated = true;
+				break;
+			}
+			else
+			{
+				if ( after )
+				{
+					after.detach();
+				}
+			}
+		}
+		return isTruncated;
+	}
+	function ellipsis( $elem, $d, $i, o, after )
+	{
+		var isTruncated	= false;
+
+		//	Don't put the ellipsis directly inside these elements
+		var notx = 'a, table, thead, tbody, tfoot, tr, col, colgroup, object, embed, param, ol, ul, dl, blockquote, select, optgroup, option, textarea, script, style';
+
+		//	Don't remove these elements even if they are after the ellipsis
+		var noty = 'script, .dotdotdot-keep';
+
+		$elem
+			.contents()
+			.detach()
+			.each(
+				function()
+				{
+
+					var e	= this,
+						$e	= $(e);
+
+					if ( typeof e == 'undefined' )
+					{
+						return true;
+					}
+					else if ( $e.is( noty ) )
+					{
+						$elem.append( $e );
+					}
+					else if ( isTruncated )
+					{
+						return true;
+					}
+					else
+					{
+						$elem.append( $e );
+						if ( after && !$e.is( o.after ) && !$e.find( o.after ).length  )
+						{
+							$elem[ $elem.is( notx ) ? 'after' : 'append' ]( after );
+						}
+						if ( test( $i, o ) )
+						{
+							if ( e.nodeType == 3 ) // node is TEXT
+							{
+								isTruncated = ellipsisElement( $e, $d, $i, o, after );
+							}
+							else
+							{
+								isTruncated = ellipsis( $e, $d, $i, o, after );
+							}
+
+							if ( !isTruncated )
+							{
+								$e.detach();
+								isTruncated = true;
+							}
+						}
+
+						if ( !isTruncated )
+						{
+							if ( after )
+							{
+								after.detach();
+							}
+						}
+					}
+				}
+			);
+		$d.addClass("is-truncated");
+		return isTruncated;
+	}
+	function ellipsisElement( $e, $d, $i, o, after )
+	{
+		var e = $e[ 0 ];
+
+		if ( !e )
+		{
+			return false;
+		}
+
+		var txt			= getTextContent( e ),
+			space		= ( txt.indexOf(' ') !== -1 ) ? ' ' : '\u3000',
+			separator	= ( o.wrap == 'letter' ) ? '' : space,
+			textArr		= txt.split( separator ),
+			position 	= -1,
+			midPos		= -1,
+			startPos	= 0,
+			endPos		= textArr.length - 1;
+
+
+		//	Only one word
+		if ( o.fallbackToLetter && startPos == 0 && endPos == 0 )
+		{
+			separator	= '';
+			textArr		= txt.split( separator );
+			endPos		= textArr.length - 1;
+		}
+
+		while ( startPos <= endPos && !( startPos == 0 && endPos == 0 ) )
+		{
+			var m = Math.floor( ( startPos + endPos ) / 2 );
+			if ( m == midPos )
+			{
+				break;
+			}
+			midPos = m;
+
+			setTextContent( e, textArr.slice( 0, midPos + 1 ).join( separator ) + o.ellipsis );
+			$i.children()
+				.each(
+					function()
+					{
+						$(this).toggle().toggle();
+					}
+				);
+
+			if ( !test( $i, o ) )
+			{
+				position = midPos;
+				startPos = midPos;
+			}
+			else
+			{
+				endPos = midPos;
+
+				//	Fallback to letter
+				if (o.fallbackToLetter && startPos == 0 && endPos == 0 )
+				{
+					separator	= '';
+					textArr		= textArr[ 0 ].split( separator );
+					position	= -1;
+					midPos		= -1;
+					startPos	= 0;
+					endPos		= textArr.length - 1;
+				}
+			}
+		}
+
+		if ( position != -1 && !( textArr.length == 1 && textArr[ 0 ].length == 0 ) )
+		{
+			txt = addEllipsis( textArr.slice( 0, position + 1 ).join( separator ), o );
+			setTextContent( e, txt );
+		}
+		else
+		{
+			var $w = $e.parent();
+			$e.detach();
+
+			var afterLength = ( after && after.closest($w).length ) ? after.length : 0;
+
+			if ( $w.contents().length > afterLength )
+			{
+				e = findLastTextNode( $w.contents().eq( -1 - afterLength ), $d );
+			}
+			else
+			{
+				e = findLastTextNode( $w, $d, true );
+				if ( !afterLength )
+				{
+					$w.detach();
+				}
+			}
+			if ( e )
+			{
+				txt = addEllipsis( getTextContent( e ), o );
+				setTextContent( e, txt );
+				if ( afterLength && after )
+				{
+					$(e).parent().append( after );
+				}
+			}
+		}
+
+		return true;
+	}
+	function test( $i, o )
+	{
+		return $i.innerHeight() > o.maxHeight;
+	}
+	function addEllipsis( txt, o )
+	{
+		while( $.inArray( txt.slice( -1 ), o.lastCharacter.remove ) > -1 )
+		{
+			txt = txt.slice( 0, -1 );
+		}
+		if ( $.inArray( txt.slice( -1 ), o.lastCharacter.noEllipsis ) < 0 )
+		{
+			txt += o.ellipsis;
+		}
+		return txt;
+	}
+	function getSizes( $d )
+	{
+		return {
+			'width'	: $d.innerWidth(),
+			'height': $d.innerHeight()
+		};
+	}
+	function setTextContent( e, content )
+	{
+		if ( e.innerText )
+		{
+			e.innerText = content;
+		}
+		else if ( e.nodeValue )
+		{
+			e.nodeValue = content;
+		}
+		else if (e.textContent)
+		{
+			e.textContent = content;
+		}
+
+	}
+	function getTextContent( e )
+	{
+		if ( e.innerText )
+		{
+			return e.innerText;
+		}
+		else if ( e.nodeValue )
+		{
+			return e.nodeValue;
+		}
+		else if ( e.textContent )
+		{
+			return e.textContent;
+		}
+		else
+		{
+			return "";
+		}
+	}
+	function getPrevNode( n )
+	{
+		do
+		{
+			n = n.previousSibling;
+		}
+		while ( n && n.nodeType !== 1 && n.nodeType !== 3 );
+
+		return n;
+	}
+	function findLastTextNode( $el, $top, excludeCurrent )
+	{
+		var e = $el && $el[ 0 ], p;
+		if ( e )
+		{
+			if ( !excludeCurrent )
+			{
+				if ( e.nodeType === 3 )
+				{
+					return e;
+				}
+				if ( $.trim( $el.text() ) )
+				{
+					return findLastTextNode( $el.contents().last(), $top );
+				}
+			}
+			p = getPrevNode( e );
+			while ( !p )
+			{
+				$el = $el.parent();
+				if ( $el.is( $top ) || !$el.length )
+				{
+					return false;
+				}
+				p = getPrevNode( $el[0] );
+			}
+			if ( p )
+			{
+				return findLastTextNode( $(p), $top );
+			}
+		}
+		return false;
+	}
+	function getElement( e, $i )
+	{
+		if ( !e )
+		{
+			return false;
+		}
+		if ( typeof e === 'string' )
+		{
+			e = $(e, $i);
+			return ( e.length )
+				? e
+				: false;
+		}
+		return !e.jquery
+			? false
+			: e;
+	}
+	function getTrueInnerHeight( $el )
+	{
+		var h = $el.innerHeight(),
+			a = [ 'paddingTop', 'paddingBottom' ];
+
+		for ( var z = 0, l = a.length; z < l; z++ )
+		{
+			var m = parseInt( $el.css( a[ z ] ), 10 );
+			if ( isNaN( m ) )
+			{
+				m = 0;
+			}
+			h -= m;
+		}
+		return h;
+	}
+
+
+	//	override jQuery.html
+	var _orgHtml = $.fn.html;
+	$.fn.html = function( str )
+	{
+		if ( str != undef && !$.isFunction( str ) && this.data( 'dotdotdot' ) )
+		{
+			return this.trigger( 'update', [ str ] );
+		}
+		return _orgHtml.apply( this, arguments );
+	};
+
+
+	//	override jQuery.text
+	var _orgText = $.fn.text;
+	$.fn.text = function( str )
+	{
+		if ( str != undef && !$.isFunction( str ) && this.data( 'dotdotdot' ) )
+		{
+			str = $( '<div />' ).text( str ).html();
+			return this.trigger( 'update', [ str ] );
+		}
+		return _orgText.apply( this, arguments );
+	};
+
+
+})( jQuery );
+
+/*!
+ * iCheck v1.0.2, http://git.io/arlzeA
+ * ===================================
+ * Powerful jQuery and Zepto plugin for checkboxes and radio buttons customization
+ *
+ * (c) 2013 Damir Sultanov, http://fronteed.com
+ * MIT Licensed
+ */
+
+(function($) {
+
+  // Cached vars
+  var _iCheck = 'iCheck',
+    _iCheckHelper = _iCheck + '-helper',
+    _checkbox = 'checkbox',
+    _radio = 'radio',
+    _checked = 'checked',
+    _unchecked = 'un' + _checked,
+    _disabled = 'disabled',a
+    _determinate = 'determinate',
+    _indeterminate = 'in' + _determinate,
+    _update = 'update',
+    _type = 'type',
+    _click = 'click',
+    _touch = 'touchbegin.i touchend.i',
+    _add = 'addClass',
+    _remove = 'removeClass',
+    _callback = 'trigger',
+    _label = 'label',
+    _cursor = 'cursor',
+    _mobile = /ipad|iphone|ipod|android|blackberry|windows phone|opera mini|silk/i.test(navigator.userAgent);
+
+  // Plugin init
+  $.fn[_iCheck] = function(options, fire) {
+
+    // Walker
+    var handle = 'input[type="' + _checkbox + '"], input[type="' + _radio + '"]',
+      stack = $(),
+      walker = function(object) {
+        object.each(function() {
+          var self = $(this);
+
+          if (self.is(handle)) {
+            stack = stack.add(self);
+          } else {
+            stack = stack.add(self.find(handle));
+          }
+        });
+      };
+
+    // Check if we should operate with some method
+    if (/^(check|uncheck|toggle|indeterminate|determinate|disable|enable|update|destroy)$/i.test(options)) {
+
+      // Normalize method's name
+      options = options.toLowerCase();
+
+      // Find checkboxes and radio buttons
+      walker(this);
+
+      return stack.each(function() {
+        var self = $(this);
+
+        if (options == 'destroy') {
+          tidy(self, 'ifDestroyed');
+        } else {
+          operate(self, true, options);
+        }
+
+        // Fire method's callback
+        if ($.isFunction(fire)) {
+          fire();
+        }
+      });
+
+    // Customization
+    } else if (typeof options == 'object' || !options) {
+
+      // Check if any options were passed
+      var settings = $.extend({
+          checkedClass: _checked,
+          disabledClass: _disabled,
+          indeterminateClass: _indeterminate,
+          labelHover: true
+        }, options),
+
+        selector = settings.handle,
+        hoverClass = settings.hoverClass || 'hover',
+        focusClass = settings.focusClass || 'focus',
+        activeClass = settings.activeClass || 'active',
+        labelHover = !!settings.labelHover,
+        labelHoverClass = settings.labelHoverClass || 'hover',
+
+        // Setup clickable area
+        area = ('' + settings.increaseArea).replace('%', '') | 0;
+
+      // Selector limit
+      if (selector == _checkbox || selector == _radio) {
+        handle = 'input[type="' + selector + '"]';
+      }
+
+      // Clickable area limit
+      if (area < -50) {
+        area = -50;
+      }
+
+      // Walk around the selector
+      walker(this);
+
+      return stack.each(function() {
+        var self = $(this);
+
+        // If already customized
+        tidy(self);
+
+        var node = this,
+          id = node.id,
+
+          // Layer styles
+          offset = -area + '%',
+          size = 100 + (area * 2) + '%',
+          layer = {
+            position: 'absolute',
+            top: offset,
+            left: offset,
+            display: 'block',
+            width: size,
+            height: size,
+            margin: 0,
+            padding: 0,
+            background: '#fff',
+            border: 0,
+            opacity: 0
+          },
+
+          // Choose how to hide input
+          hide = _mobile ? {
+            position: 'absolute',
+            visibility: 'hidden'
+          } : area ? layer : {
+            position: 'absolute',
+            opacity: 0
+          },
+
+          // Get proper class
+          className = node[_type] == _checkbox ? settings.checkboxClass || 'i' + _checkbox : settings.radioClass || 'i' + _radio,
+
+          // Find assigned labels
+          label = $(_label + '[for="' + id + '"]').add(self.closest(_label)),
+
+          // Check ARIA option
+          aria = !!settings.aria,
+
+          // Set ARIA placeholder
+          ariaID = _iCheck + '-' + Math.random().toString(36).substr(2,6),
+
+          // Parent & helper
+          parent = '<div class="' + className + '" ' + (aria ? 'role="' + node[_type] + '" ' : ''),
+          helper;
+
+        // Set ARIA "labelledby"
+        if (aria) {
+          label.each(function() {
+            parent += 'aria-labelledby="';
+
+            if (this.id) {
+              parent += this.id;
+            } else {
+              this.id = ariaID;
+              parent += ariaID;
+            }
+
+            parent += '"';
+          });
+        }
+
+        // Wrap input
+        parent = self.wrap(parent + '/>')[_callback]('ifCreated').parent().append(settings.insert);
+
+        // Layer addition
+        helper = $('<ins class="' + _iCheckHelper + '"/>').css(layer).appendTo(parent);
+
+        // Finalize customization
+        self.data(_iCheck, {o: settings, s: self.attr('style')}).css(hide);
+        !!settings.inheritClass && parent[_add](node.className || '');
+        !!settings.inheritID && id && parent.attr('id', _iCheck + '-' + id);
+        parent.css('position') == 'static' && parent.css('position', 'relative');
+        operate(self, true, _update);
+
+        // Label events
+        if (label.length) {
+          label.on(_click + '.i mouseover.i mouseout.i ' + _touch, function(event) {
+            var type = event[_type],
+              item = $(this);
+
+            // Do nothing if input is disabled
+            if (!node[_disabled]) {
+
+              // Click
+              if (type == _click) {
+                if ($(event.target).is('a')) {
+                  return;
+                }
+                operate(self, false, true);
+
+              // Hover state
+              } else if (labelHover) {
+
+                // mouseout|touchend
+                if (/ut|nd/.test(type)) {
+                  parent[_remove](hoverClass);
+                  item[_remove](labelHoverClass);
+                } else {
+                  parent[_add](hoverClass);
+                  item[_add](labelHoverClass);
+                }
+              }
+
+              if (_mobile) {
+                event.stopPropagation();
+              } else {
+                return false;
+              }
+            }
+          });
+        }
+
+        // Input events
+        self.on(_click + '.i focus.i blur.i keyup.i keydown.i keypress.i', function(event) {
+          var type = event[_type],
+            key = event.keyCode;
+
+          // Click
+          if (type == _click) {
+            return false;
+
+          // Keydown
+          } else if (type == 'keydown' && key == 32) {
+            if (!(node[_type] == _radio && node[_checked])) {
+              if (node[_checked]) {
+                off(self, _checked);
+              } else {
+                on(self, _checked);
+              }
+            }
+
+            return false;
+
+          // Keyup
+          } else if (type == 'keyup' && node[_type] == _radio) {
+            !node[_checked] && on(self, _checked);
+
+          // Focus/blur
+          } else if (/us|ur/.test(type)) {
+            parent[type == 'blur' ? _remove : _add](focusClass);
+          }
+        });
+
+        // Helper events
+        helper.on(_click + ' mousedown mouseup mouseover mouseout ' + _touch, function(event) {
+          var type = event[_type],
+
+            // mousedown|mouseup
+            toggle = /wn|up/.test(type) ? activeClass : hoverClass;
+
+          // Do nothing if input is disabled
+          if (!node[_disabled]) {
+
+            // Click
+            if (type == _click) {
+              operate(self, false, true);
+
+            // Active and hover states
+            } else {
+
+              // State is on
+              if (/wn|er|in/.test(type)) {
+
+                // mousedown|mouseover|touchbegin
+                parent[_add](toggle);
+
+              // State is off
+              } else {
+                parent[_remove](toggle + ' ' + activeClass);
+              }
+
+              // Label hover
+              if (label.length && labelHover && toggle == hoverClass) {
+
+                // mouseout|touchend
+                label[/ut|nd/.test(type) ? _remove : _add](labelHoverClass);
+              }
+            }
+
+            if (_mobile) {
+              event.stopPropagation();
+            } else {
+              return false;
+            }
+          }
+        });
+      });
+    } else {
+      return this;
+    }
+  };
+
+  // Do something with inputs
+  function operate(input, direct, method) {
+    var node = input[0],
+      state = /er/.test(method) ? _indeterminate : /bl/.test(method) ? _disabled : _checked,
+      active = method == _update ? {
+        checked: node[_checked],
+        disabled: node[_disabled],
+        indeterminate: input.attr(_indeterminate) == 'true' || input.attr(_determinate) == 'false'
+      } : node[state];
+
+    // Check, disable or indeterminate
+    if (/^(ch|di|in)/.test(method) && !active) {
+      on(input, state);
+
+    // Uncheck, enable or determinate
+    } else if (/^(un|en|de)/.test(method) && active) {
+      off(input, state);
+
+    // Update
+    } else if (method == _update) {
+
+      // Handle states
+      for (var each in active) {
+        if (active[each]) {
+          on(input, each, true);
+        } else {
+          off(input, each, true);
+        }
+      }
+
+    } else if (!direct || method == 'toggle') {
+
+      // Helper or label was clicked
+      if (!direct) {
+        input[_callback]('ifClicked');
+      }
+
+      // Toggle checked state
+      if (active) {
+        if (node[_type] !== _radio) {
+          off(input, state);
+        }
+      } else {
+        on(input, state);
+      }
+    }
+  }
+
+  // Add checked, disabled or indeterminate state
+  function on(input, state, keep) {
+    var node = input[0],
+      parent = input.parent(),
+      checked = state == _checked,
+      indeterminate = state == _indeterminate,
+      disabled = state == _disabled,
+      callback = indeterminate ? _determinate : checked ? _unchecked : 'enabled',
+      regular = option(input, callback + capitalize(node[_type])),
+      specific = option(input, state + capitalize(node[_type]));
+
+    // Prevent unnecessary actions
+    if (node[state] !== true) {
+
+      // Toggle assigned radio buttons
+      if (!keep && state == _checked && node[_type] == _radio && node.name) {
+        var form = input.closest('form'),
+          inputs = 'input[name="' + node.name + '"]';
+
+        inputs = form.length ? form.find(inputs) : $(inputs);
+
+        inputs.each(function() {
+          if (this !== node && $(this).data(_iCheck)) {
+            off($(this), state);
+          }
+        });
+      }
+
+      // Indeterminate state
+      if (indeterminate) {
+
+        // Add indeterminate state
+        node[state] = true;
+
+        // Remove checked state
+        if (node[_checked]) {
+          off(input, _checked, 'force');
+        }
+
+      // Checked or disabled state
+      } else {
+
+        // Add checked or disabled state
+        if (!keep) {
+          node[state] = true;
+        }
+
+        // Remove indeterminate state
+        if (checked && node[_indeterminate]) {
+          off(input, _indeterminate, false);
+        }
+      }
+
+      // Trigger callbacks
+      callbacks(input, checked, state, keep);
+    }
+
+    // Add proper cursor
+    if (node[_disabled] && !!option(input, _cursor, true)) {
+      parent.find('.' + _iCheckHelper).css(_cursor, 'default');
+    }
+
+    // Add state class
+    parent[_add](specific || option(input, state) || '');
+
+    // Set ARIA attribute
+    if (!!parent.attr('role') && !indeterminate) {
+      parent.attr('aria-' + (disabled ? _disabled : _checked), 'true');
+    }
+
+    // Remove regular state class
+    parent[_remove](regular || option(input, callback) || '');
+  }
+
+  // Remove checked, disabled or indeterminate state
+  function off(input, state, keep) {
+    var node = input[0],
+      parent = input.parent(),
+      checked = state == _checked,
+      indeterminate = state == _indeterminate,
+      disabled = state == _disabled,
+      callback = indeterminate ? _determinate : checked ? _unchecked : 'enabled',
+      regular = option(input, callback + capitalize(node[_type])),
+      specific = option(input, state + capitalize(node[_type]));
+
+    // Prevent unnecessary actions
+    if (node[state] !== false) {
+
+      // Toggle state
+      if (indeterminate || !keep || keep == 'force') {
+        node[state] = false;
+      }
+
+      // Trigger callbacks
+      callbacks(input, checked, callback, keep);
+    }
+
+    // Add proper cursor
+    if (!node[_disabled] && !!option(input, _cursor, true)) {
+      parent.find('.' + _iCheckHelper).css(_cursor, 'pointer');
+    }
+
+    // Remove state class
+    parent[_remove](specific || option(input, state) || '');
+
+    // Set ARIA attribute
+    if (!!parent.attr('role') && !indeterminate) {
+      parent.attr('aria-' + (disabled ? _disabled : _checked), 'false');
+    }
+
+    // Add regular state class
+    parent[_add](regular || option(input, callback) || '');
+  }
+
+  // Remove all traces
+  function tidy(input, callback) {
+    if (input.data(_iCheck)) {
+
+      // Remove everything except input
+      input.parent().html(input.attr('style', input.data(_iCheck).s || ''));
+
+      // Callback
+      if (callback) {
+        input[_callback](callback);
+      }
+
+      // Unbind events
+      input.off('.i').unwrap();
+      $(_label + '[for="' + input[0].id + '"]').add(input.closest(_label)).off('.i');
+    }
+  }
+
+  // Get some option
+  function option(input, state, regular) {
+    if (input.data(_iCheck)) {
+      return input.data(_iCheck).o[state + (regular ? '' : 'Class')];
+    }
+  }
+
+  // Capitalize some string
+  function capitalize(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  }
+
+  // Executable handlers
+  function callbacks(input, checked, callback, keep) {
+    if (!keep) {
+      if (checked) {
+        input[_callback]('ifToggled');
+      }
+
+      input[_callback]('ifChanged')[_callback]('if' + capitalize(callback));
+    }
+  }
+})(window.jQuery || window.Zepto);
+
+/**
+ * sifter.js
+ * Copyright (c) 2013 Brian Reavis & contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
+ * file except in compliance with the License. You may obtain a copy of the License at:
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ *
+ * @author Brian Reavis <brian@thirdroute.com>
+ */
+
+(function(root, factory) {
+	if (typeof define === 'function' && define.amd) {
+		define('sifter', factory);
+	} else if (typeof exports === 'object') {
+		module.exports = factory();
+	} else {
+		root.Sifter = factory();
+	}
+}(this, function() {
+
+	/**
+	 * Textually searches arrays and hashes of objects
+	 * by property (or multiple properties). Designed
+	 * specifically for autocomplete.
+	 *
+	 * @constructor
+	 * @param {array|object} items
+	 * @param {object} items
+	 */
+	var Sifter = function(items, settings) {
+		this.items = items;
+		this.settings = settings || {diacritics: true};
+	};
+
+	/**
+	 * Splits a search string into an array of individual
+	 * regexps to be used to match results.
+	 *
+	 * @param {string} query
+	 * @returns {array}
+	 */
+	Sifter.prototype.tokenize = function(query) {
+		query = trim(String(query || '').toLowerCase());
+		if (!query || !query.length) return [];
+
+		var i, n, regex, letter;
+		var tokens = [];
+		var words = query.split(/ +/);
+
+		for (i = 0, n = words.length; i < n; i++) {
+			regex = escape_regex(words[i]);
+			if (this.settings.diacritics) {
+				for (letter in DIACRITICS) {
+					if (DIACRITICS.hasOwnProperty(letter)) {
+						regex = regex.replace(new RegExp(letter, 'g'), DIACRITICS[letter]);
+					}
+				}
+			}
+			tokens.push({
+				string : words[i],
+				regex  : new RegExp(regex, 'i')
+			});
+		}
+
+		return tokens;
+	};
+
+	/**
+	 * Iterates over arrays and hashes.
+	 *
+	 * ```
+	 * this.iterator(this.items, function(item, id) {
+	 *    // invoked for each item
+	 * });
+	 * ```
+	 *
+	 * @param {array|object} object
+	 */
+	Sifter.prototype.iterator = function(object, callback) {
+		var iterator;
+		if (is_array(object)) {
+			iterator = Array.prototype.forEach || function(callback) {
+				for (var i = 0, n = this.length; i < n; i++) {
+					callback(this[i], i, this);
+				}
+			};
+		} else {
+			iterator = function(callback) {
+				for (var key in this) {
+					if (this.hasOwnProperty(key)) {
+						callback(this[key], key, this);
+					}
+				}
+			};
+		}
+
+		iterator.apply(object, [callback]);
+	};
+
+	/**
+	 * Returns a function to be used to score individual results.
+	 *
+	 * Good matches will have a higher score than poor matches.
+	 * If an item is not a match, 0 will be returned by the function.
+	 *
+	 * @param {object|string} search
+	 * @param {object} options (optional)
+	 * @returns {function}
+	 */
+	Sifter.prototype.getScoreFunction = function(search, options) {
+		var self, fields, tokens, token_count;
+
+		self        = this;
+		search      = self.prepareSearch(search, options);
+		tokens      = search.tokens;
+		fields      = search.options.fields;
+		token_count = tokens.length;
+
+		/**
+		 * Calculates how close of a match the
+		 * given value is against a search token.
+		 *
+		 * @param {mixed} value
+		 * @param {object} token
+		 * @return {number}
+		 */
+		var scoreValue = function(value, token) {
+			var score, pos;
+
+			if (!value) return 0;
+			value = String(value || '');
+			pos = value.search(token.regex);
+			if (pos === -1) return 0;
+			score = token.string.length / value.length;
+			if (pos === 0) score += 0.5;
+			return score;
+		};
+
+		/**
+		 * Calculates the score of an object
+		 * against the search query.
+		 *
+		 * @param {object} token
+		 * @param {object} data
+		 * @return {number}
+		 */
+		var scoreObject = (function() {
+			var field_count = fields.length;
+			if (!field_count) {
+				return function() { return 0; };
+			}
+			if (field_count === 1) {
+				return function(token, data) {
+					return scoreValue(data[fields[0]], token);
+				};
+			}
+			return function(token, data) {
+				for (var i = 0, sum = 0; i < field_count; i++) {
+					sum += scoreValue(data[fields[i]], token);
+				}
+				return sum / field_count;
+			};
+		})();
+
+		if (!token_count) {
+			return function() { return 0; };
+		}
+		if (token_count === 1) {
+			return function(data) {
+				return scoreObject(tokens[0], data);
+			};
+		}
+
+		if (search.options.conjunction === 'and') {
+			return function(data) {
+				var score;
+				for (var i = 0, sum = 0; i < token_count; i++) {
+					score = scoreObject(tokens[i], data);
+					if (score <= 0) return 0;
+					sum += score;
+				}
+				return sum / token_count;
+			};
+		} else {
+			return function(data) {
+				for (var i = 0, sum = 0; i < token_count; i++) {
+					sum += scoreObject(tokens[i], data);
+				}
+				return sum / token_count;
+			};
+		}
+	};
+
+	/**
+	 * Returns a function that can be used to compare two
+	 * results, for sorting purposes. If no sorting should
+	 * be performed, `null` will be returned.
+	 *
+	 * @param {string|object} search
+	 * @param {object} options
+	 * @return function(a,b)
+	 */
+	Sifter.prototype.getSortFunction = function(search, options) {
+		var i, n, self, field, fields, fields_count, multiplier, multipliers, get_field, implicit_score, sort;
+
+		self   = this;
+		search = self.prepareSearch(search, options);
+		sort   = (!search.query && options.sort_empty) || options.sort;
+
+		/**
+		 * Fetches the specified sort field value
+		 * from a search result item.
+		 *
+		 * @param  {string} name
+		 * @param  {object} result
+		 * @return {mixed}
+		 */
+		get_field = function(name, result) {
+			if (name === '$score') return result.score;
+			return self.items[result.id][name];
+		};
+
+		// parse options
+		fields = [];
+		if (sort) {
+			for (i = 0, n = sort.length; i < n; i++) {
+				if (search.query || sort[i].field !== '$score') {
+					fields.push(sort[i]);
+				}
+			}
+		}
+
+		// the "$score" field is implied to be the primary
+		// sort field, unless it's manually specified
+		if (search.query) {
+			implicit_score = true;
+			for (i = 0, n = fields.length; i < n; i++) {
+				if (fields[i].field === '$score') {
+					implicit_score = false;
+					break;
+				}
+			}
+			if (implicit_score) {
+				fields.unshift({field: '$score', direction: 'desc'});
+			}
+		} else {
+			for (i = 0, n = fields.length; i < n; i++) {
+				if (fields[i].field === '$score') {
+					fields.splice(i, 1);
+					break;
+				}
+			}
+		}
+
+		multipliers = [];
+		for (i = 0, n = fields.length; i < n; i++) {
+			multipliers.push(fields[i].direction === 'desc' ? -1 : 1);
+		}
+
+		// build function
+		fields_count = fields.length;
+		if (!fields_count) {
+			return null;
+		} else if (fields_count === 1) {
+			field = fields[0].field;
+			multiplier = multipliers[0];
+			return function(a, b) {
+				return multiplier * cmp(
+					get_field(field, a),
+					get_field(field, b)
+				);
+			};
+		} else {
+			return function(a, b) {
+				var i, result, a_value, b_value, field;
+				for (i = 0; i < fields_count; i++) {
+					field = fields[i].field;
+					result = multipliers[i] * cmp(
+						get_field(field, a),
+						get_field(field, b)
+					);
+					if (result) return result;
+				}
+				return 0;
+			};
+		}
+	};
+
+	/**
+	 * Parses a search query and returns an object
+	 * with tokens and fields ready to be populated
+	 * with results.
+	 *
+	 * @param {string} query
+	 * @param {object} options
+	 * @returns {object}
+	 */
+	Sifter.prototype.prepareSearch = function(query, options) {
+		if (typeof query === 'object') return query;
+
+		options = extend({}, options);
+
+		var option_fields     = options.fields;
+		var option_sort       = options.sort;
+		var option_sort_empty = options.sort_empty;
+
+		if (option_fields && !is_array(option_fields)) options.fields = [option_fields];
+		if (option_sort && !is_array(option_sort)) options.sort = [option_sort];
+		if (option_sort_empty && !is_array(option_sort_empty)) options.sort_empty = [option_sort_empty];
+
+		return {
+			options : options,
+			query   : String(query || '').toLowerCase(),
+			tokens  : this.tokenize(query),
+			total   : 0,
+			items   : []
+		};
+	};
+
+	/**
+	 * Searches through all items and returns a sorted array of matches.
+	 *
+	 * The `options` parameter can contain:
+	 *
+	 *   - fields {string|array}
+	 *   - sort {array}
+	 *   - score {function}
+	 *   - filter {bool}
+	 *   - limit {integer}
+	 *
+	 * Returns an object containing:
+	 *
+	 *   - options {object}
+	 *   - query {string}
+	 *   - tokens {array}
+	 *   - total {int}
+	 *   - items {array}
+	 *
+	 * @param {string} query
+	 * @param {object} options
+	 * @returns {object}
+	 */
+	Sifter.prototype.search = function(query, options) {
+		var self = this, value, score, search, calculateScore;
+		var fn_sort;
+		var fn_score;
+
+		search  = this.prepareSearch(query, options);
+		options = search.options;
+		query   = search.query;
+
+		// generate result scoring function
+		fn_score = options.score || self.getScoreFunction(search);
+
+		// perform search and sort
+		if (query.length) {
+			self.iterator(self.items, function(item, id) {
+				score = fn_score(item);
+				if (options.filter === false || score > 0) {
+					search.items.push({'score': score, 'id': id});
+				}
+			});
+		} else {
+			self.iterator(self.items, function(item, id) {
+				search.items.push({'score': 1, 'id': id});
+			});
+		}
+
+		fn_sort = self.getSortFunction(search, options);
+		if (fn_sort) search.items.sort(fn_sort);
+
+		// apply limits
+		search.total = search.items.length;
+		if (typeof options.limit === 'number') {
+			search.items = search.items.slice(0, options.limit);
+		}
+
+		return search;
+	};
+
+	// utilities
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+	var cmp = function(a, b) {
+		if (typeof a === 'number' && typeof b === 'number') {
+			return a > b ? 1 : (a < b ? -1 : 0);
+		}
+		a = asciifold(String(a || ''));
+		b = asciifold(String(b || ''));
+		if (a > b) return 1;
+		if (b > a) return -1;
+		return 0;
+	};
+
+	var extend = function(a, b) {
+		var i, n, k, object;
+		for (i = 1, n = arguments.length; i < n; i++) {
+			object = arguments[i];
+			if (!object) continue;
+			for (k in object) {
+				if (object.hasOwnProperty(k)) {
+					a[k] = object[k];
+				}
+			}
+		}
+		return a;
+	};
+
+	var trim = function(str) {
+		return (str + '').replace(/^\s+|\s+$|/g, '');
+	};
+
+	var escape_regex = function(str) {
+		return (str + '').replace(/([.?*+^$[\]\\(){}|-])/g, '\\$1');
+	};
+
+	var is_array = Array.isArray || ($ && $.isArray) || function(object) {
+		return Object.prototype.toString.call(object) === '[object Array]';
+	};
+
+	var DIACRITICS = {
+		'a': '[aÀÁÂÃÄÅàáâãäåĀāąĄ]',
+		'c': '[cÇçćĆčČ]',
+		'd': '[dđĐďĎ]',
+		'e': '[eÈÉÊËèéêëěĚĒēęĘ]',
+		'i': '[iÌÍÎÏìíîïĪī]',
+		'l': '[lłŁ]',
+		'n': '[nÑñňŇńŃ]',
+		'o': '[oÒÓÔÕÕÖØòóôõöøŌō]',
+		'r': '[rřŘ]',
+		's': '[sŠšśŚ]',
+		't': '[tťŤ]',
+		'u': '[uÙÚÛÜùúûüůŮŪū]',
+		'y': '[yŸÿýÝ]',
+		'z': '[zŽžżŻźŹ]'
+	};
+
+	var asciifold = (function() {
+		var i, n, k, chunk;
+		var foreignletters = '';
+		var lookup = {};
+		for (k in DIACRITICS) {
+			if (DIACRITICS.hasOwnProperty(k)) {
+				chunk = DIACRITICS[k].substring(2, DIACRITICS[k].length - 1);
+				foreignletters += chunk;
+				for (i = 0, n = chunk.length; i < n; i++) {
+					lookup[chunk.charAt(i)] = k;
+				}
+			}
+		}
+		var regexp = new RegExp('[' +  foreignletters + ']', 'g');
+		return function(str) {
+			return str.replace(regexp, function(foreignletter) {
+				return lookup[foreignletter];
+			}).toLowerCase();
+		};
+	})();
+
+
+	// export
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+	return Sifter;
+}));
+
+
+
+/**
+ * microplugin.js
+ * Copyright (c) 2013 Brian Reavis & contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
+ * file except in compliance with the License. You may obtain a copy of the License at:
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ *
+ * @author Brian Reavis <brian@thirdroute.com>
+ */
+
+(function(root, factory) {
+	if (typeof define === 'function' && define.amd) {
+		define('microplugin', factory);
+	} else if (typeof exports === 'object') {
+		module.exports = factory();
+	} else {
+		root.MicroPlugin = factory();
+	}
+}(this, function() {
+	var MicroPlugin = {};
+
+	MicroPlugin.mixin = function(Interface) {
+		Interface.plugins = {};
+
+		/**
+		 * Initializes the listed plugins (with options).
+		 * Acceptable formats:
+		 *
+		 * List (without options):
+		 *   ['a', 'b', 'c']
+		 *
+		 * List (with options):
+		 *   [{'name': 'a', options: {}}, {'name': 'b', options: {}}]
+		 *
+		 * Hash (with options):
+		 *   {'a': { ... }, 'b': { ... }, 'c': { ... }}
+		 *
+		 * @param {mixed} plugins
+		 */
+		Interface.prototype.initializePlugins = function(plugins) {
+			var i, n, key;
+			var self  = this;
+			var queue = [];
+
+			self.plugins = {
+				names     : [],
+				settings  : {},
+				requested : {},
+				loaded    : {}
+			};
+
+			if (utils.isArray(plugins)) {
+				for (i = 0, n = plugins.length; i < n; i++) {
+					if (typeof plugins[i] === 'string') {
+						queue.push(plugins[i]);
+					} else {
+						self.plugins.settings[plugins[i].name] = plugins[i].options;
+						queue.push(plugins[i].name);
+					}
+				}
+			} else if (plugins) {
+				for (key in plugins) {
+					if (plugins.hasOwnProperty(key)) {
+						self.plugins.settings[key] = plugins[key];
+						queue.push(key);
+					}
+				}
+			}
+
+			while (queue.length) {
+				self.require(queue.shift());
+			}
+		};
+
+		Interface.prototype.loadPlugin = function(name) {
+			var self    = this;
+			var plugins = self.plugins;
+			var plugin  = Interface.plugins[name];
+
+			if (!Interface.plugins.hasOwnProperty(name)) {
+				throw new Error('Unable to find "' +  name + '" plugin');
+			}
+
+			plugins.requested[name] = true;
+			plugins.loaded[name] = plugin.fn.apply(self, [self.plugins.settings[name] || {}]);
+			plugins.names.push(name);
+		};
+
+		/**
+		 * Initializes a plugin.
+		 *
+		 * @param {string} name
+		 */
+		Interface.prototype.require = function(name) {
+			var self = this;
+			var plugins = self.plugins;
+
+			if (!self.plugins.loaded.hasOwnProperty(name)) {
+				if (plugins.requested[name]) {
+					throw new Error('Plugin has circular dependency ("' + name + '")');
+				}
+				self.loadPlugin(name);
+			}
+
+			return plugins.loaded[name];
+		};
+
+		/**
+		 * Registers a plugin.
+		 *
+		 * @param {string} name
+		 * @param {function} fn
+		 */
+		Interface.define = function(name, fn) {
+			Interface.plugins[name] = {
+				'name' : name,
+				'fn'   : fn
+			};
+		};
+	};
+
+	var utils = {
+		isArray: Array.isArray || function(vArg) {
+			return Object.prototype.toString.call(vArg) === '[object Array]';
+		}
+	};
+
+	return MicroPlugin;
+}));
+
+/**
+ * selectize.js (v0.12.1)
+ * Copyright (c) 2013–2015 Brian Reavis & contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this
+ * file except in compliance with the License. You may obtain a copy of the License at:
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under
+ * the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF
+ * ANY KIND, either express or implied. See the License for the specific language
+ * governing permissions and limitations under the License.
+ *
+ * @author Brian Reavis <brian@thirdroute.com>
+ */
+
+/*jshint curly:false */
+/*jshint browser:true */
+
+(function(root, factory) {
+	if (typeof define === 'function' && define.amd) {
+		define('selectize', ['jquery','sifter','microplugin'], factory);
+	} else if (typeof exports === 'object') {
+		module.exports = factory(require('jquery'), require('sifter'), require('microplugin'));
+	} else {
+		root.Selectize = factory(root.jQuery, root.Sifter, root.MicroPlugin);
+	}
+}(this, function($, Sifter, MicroPlugin) {
+	'use strict';
+
+	var highlight = function($element, pattern) {
+		if (typeof pattern === 'string' && !pattern.length) return;
+		var regex = (typeof pattern === 'string') ? new RegExp(pattern, 'i') : pattern;
+	
+		var highlight = function(node) {
+			var skip = 0;
+			if (node.nodeType === 3) {
+				var pos = node.data.search(regex);
+				if (pos >= 0 && node.data.length > 0) {
+					var match = node.data.match(regex);
+					var spannode = document.createElement('span');
+					spannode.className = 'highlight';
+					var middlebit = node.splitText(pos);
+					var endbit = middlebit.splitText(match[0].length);
+					var middleclone = middlebit.cloneNode(true);
+					spannode.appendChild(middleclone);
+					middlebit.parentNode.replaceChild(spannode, middlebit);
+					skip = 1;
+				}
+			} else if (node.nodeType === 1 && node.childNodes && !/(script|style)/i.test(node.tagName)) {
+				for (var i = 0; i < node.childNodes.length; ++i) {
+					i += highlight(node.childNodes[i]);
+				}
+			}
+			return skip;
+		};
+	
+		return $element.each(function() {
+			highlight(this);
+		});
+	};
+	
+	var MicroEvent = function() {};
+	MicroEvent.prototype = {
+		on: function(event, fct){
+			this._events = this._events || {};
+			this._events[event] = this._events[event] || [];
+			this._events[event].push(fct);
+		},
+		off: function(event, fct){
+			var n = arguments.length;
+			if (n === 0) return delete this._events;
+			if (n === 1) return delete this._events[event];
+	
+			this._events = this._events || {};
+			if (event in this._events === false) return;
+			this._events[event].splice(this._events[event].indexOf(fct), 1);
+		},
+		trigger: function(event /* , args... */){
+			this._events = this._events || {};
+			if (event in this._events === false) return;
+			for (var i = 0; i < this._events[event].length; i++){
+				this._events[event][i].apply(this, Array.prototype.slice.call(arguments, 1));
+			}
+		}
+	};
+	
+	/**
+	 * Mixin will delegate all MicroEvent.js function in the destination object.
+	 *
+	 * - MicroEvent.mixin(Foobar) will make Foobar able to use MicroEvent
+	 *
+	 * @param {object} the object which will support MicroEvent
+	 */
+	MicroEvent.mixin = function(destObject){
+		var props = ['on', 'off', 'trigger'];
+		for (var i = 0; i < props.length; i++){
+			destObject.prototype[props[i]] = MicroEvent.prototype[props[i]];
+		}
+	};
+	
+	var IS_MAC        = /Mac/.test(navigator.userAgent);
+	
+	var KEY_A         = 65;
+	var KEY_COMMA     = 188;
+	var KEY_RETURN    = 13;
+	var KEY_ESC       = 27;
+	var KEY_LEFT      = 37;
+	var KEY_UP        = 38;
+	var KEY_P         = 80;
+	var KEY_RIGHT     = 39;
+	var KEY_DOWN      = 40;
+	var KEY_N         = 78;
+	var KEY_BACKSPACE = 8;
+	var KEY_DELETE    = 46;
+	var KEY_SHIFT     = 16;
+	var KEY_CMD       = IS_MAC ? 91 : 17;
+	var KEY_CTRL      = IS_MAC ? 18 : 17;
+	var KEY_TAB       = 9;
+	
+	var TAG_SELECT    = 1;
+	var TAG_INPUT     = 2;
+	
+	// for now, android support in general is too spotty to support validity
+	var SUPPORTS_VALIDITY_API = !/android/i.test(window.navigator.userAgent) && !!document.createElement('form').validity;
+	
+	var isset = function(object) {
+		return typeof object !== 'undefined';
+	};
+	
+	/**
+	 * Converts a scalar to its best string representation
+	 * for hash keys and HTML attribute values.
+	 *
+	 * Transformations:
+	 *   'str'     -> 'str'
+	 *   null      -> ''
+	 *   undefined -> ''
+	 *   true      -> '1'
+	 *   false     -> '0'
+	 *   0         -> '0'
+	 *   1         -> '1'
+	 *
+	 * @param {string} value
+	 * @returns {string|null}
+	 */
+	var hash_key = function(value) {
+		if (typeof value === 'undefined' || value === null) return null;
+		if (typeof value === 'boolean') return value ? '1' : '0';
+		return value + '';
+	};
+	
+	/**
+	 * Escapes a string for use within HTML.
+	 *
+	 * @param {string} str
+	 * @returns {string}
+	 */
+	var escape_html = function(str) {
+		return (str + '')
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;');
+	};
+	
+	/**
+	 * Escapes "$" characters in replacement strings.
+	 *
+	 * @param {string} str
+	 * @returns {string}
+	 */
+	var escape_replace = function(str) {
+		return (str + '').replace(/\$/g, '$$$$');
+	};
+	
+	var hook = {};
+	
+	/**
+	 * Wraps `method` on `self` so that `fn`
+	 * is invoked before the original method.
+	 *
+	 * @param {object} self
+	 * @param {string} method
+	 * @param {function} fn
+	 */
+	hook.before = function(self, method, fn) {
+		var original = self[method];
+		self[method] = function() {
+			fn.apply(self, arguments);
+			return original.apply(self, arguments);
+		};
+	};
+	
+	/**
+	 * Wraps `method` on `self` so that `fn`
+	 * is invoked after the original method.
+	 *
+	 * @param {object} self
+	 * @param {string} method
+	 * @param {function} fn
+	 */
+	hook.after = function(self, method, fn) {
+		var original = self[method];
+		self[method] = function() {
+			var result = original.apply(self, arguments);
+			fn.apply(self, arguments);
+			return result;
+		};
+	};
+	
+	/**
+	 * Wraps `fn` so that it can only be invoked once.
+	 *
+	 * @param {function} fn
+	 * @returns {function}
+	 */
+	var once = function(fn) {
+		var called = false;
+		return function() {
+			if (called) return;
+			called = true;
+			fn.apply(this, arguments);
+		};
+	};
+	
+	/**
+	 * Wraps `fn` so that it can only be called once
+	 * every `delay` milliseconds (invoked on the falling edge).
+	 *
+	 * @param {function} fn
+	 * @param {int} delay
+	 * @returns {function}
+	 */
+	var debounce = function(fn, delay) {
+		var timeout;
+		return function() {
+			var self = this;
+			var args = arguments;
+			window.clearTimeout(timeout);
+			timeout = window.setTimeout(function() {
+				fn.apply(self, args);
+			}, delay);
+		};
+	};
+	
+	/**
+	 * Debounce all fired events types listed in `types`
+	 * while executing the provided `fn`.
+	 *
+	 * @param {object} self
+	 * @param {array} types
+	 * @param {function} fn
+	 */
+	var debounce_events = function(self, types, fn) {
+		var type;
+		var trigger = self.trigger;
+		var event_args = {};
+	
+		// override trigger method
+		self.trigger = function() {
+			var type = arguments[0];
+			if (types.indexOf(type) !== -1) {
+				event_args[type] = arguments;
+			} else {
+				return trigger.apply(self, arguments);
+			}
+		};
+	
+		// invoke provided function
+		fn.apply(self, []);
+		self.trigger = trigger;
+	
+		// trigger queued events
+		for (type in event_args) {
+			if (event_args.hasOwnProperty(type)) {
+				trigger.apply(self, event_args[type]);
+			}
+		}
+	};
+	
+	/**
+	 * A workaround for http://bugs.jquery.com/ticket/6696
+	 *
+	 * @param {object} $parent - Parent element to listen on.
+	 * @param {string} event - Event name.
+	 * @param {string} selector - Descendant selector to filter by.
+	 * @param {function} fn - Event handler.
+	 */
+	var watchChildEvent = function($parent, event, selector, fn) {
+		$parent.on(event, selector, function(e) {
+			var child = e.target;
+			while (child && child.parentNode !== $parent[0]) {
+				child = child.parentNode;
+			}
+			e.currentTarget = child;
+			return fn.apply(this, [e]);
+		});
+	};
+	
+	/**
+	 * Determines the current selection within a text input control.
+	 * Returns an object containing:
+	 *   - start
+	 *   - length
+	 *
+	 * @param {object} input
+	 * @returns {object}
+	 */
+	var getSelection = function(input) {
+		var result = {};
+		if ('selectionStart' in input) {
+			result.start = input.selectionStart;
+			result.length = input.selectionEnd - result.start;
+		} else if (document.selection) {
+			input.focus();
+			var sel = document.selection.createRange();
+			var selLen = document.selection.createRange().text.length;
+			sel.moveStart('character', -input.value.length);
+			result.start = sel.text.length - selLen;
+			result.length = selLen;
+		}
+		return result;
+	};
+	
+	/**
+	 * Copies CSS properties from one element to another.
+	 *
+	 * @param {object} $from
+	 * @param {object} $to
+	 * @param {array} properties
+	 */
+	var transferStyles = function($from, $to, properties) {
+		var i, n, styles = {};
+		if (properties) {
+			for (i = 0, n = properties.length; i < n; i++) {
+				styles[properties[i]] = $from.css(properties[i]);
+			}
+		} else {
+			styles = $from.css();
+		}
+		$to.css(styles);
+	};
+	
+	/**
+	 * Measures the width of a string within a
+	 * parent element (in pixels).
+	 *
+	 * @param {string} str
+	 * @param {object} $parent
+	 * @returns {int}
+	 */
+	var measureString = function(str, $parent) {
+		if (!str) {
+			return 0;
+		}
+	
+		var $test = $('<test>').css({
+			position: 'absolute',
+			top: -99999,
+			left: -99999,
+			width: 'auto',
+			padding: 0,
+			whiteSpace: 'pre'
+		}).text(str).appendTo('body');
+	
+		transferStyles($parent, $test, [
+			'letterSpacing',
+			'fontSize',
+			'fontFamily',
+			'fontWeight',
+			'textTransform'
+		]);
+	
+		var width = $test.width();
+		$test.remove();
+	
+		return width;
+	};
+	
+	/**
+	 * Sets up an input to grow horizontally as the user
+	 * types. If the value is changed manually, you can
+	 * trigger the "update" handler to resize:
+	 *
+	 * $input.trigger('update');
+	 *
+	 * @param {object} $input
+	 */
+	var autoGrow = function($input) {
+		var currentWidth = null;
+	
+		var update = function(e, options) {
+			var value, keyCode, printable, placeholder, width;
+			var shift, character, selection;
+			e = e || window.event || {};
+			options = options || {};
+	
+			if (e.metaKey || e.altKey) return;
+			if (!options.force && $input.data('grow') === false) return;
+	
+			value = $input.val();
+			if (e.type && e.type.toLowerCase() === 'keydown') {
+				keyCode = e.keyCode;
+				printable = (
+					(keyCode >= 97 && keyCode <= 122) || // a-z
+					(keyCode >= 65 && keyCode <= 90)  || // A-Z
+					(keyCode >= 48 && keyCode <= 57)  || // 0-9
+					keyCode === 32 // space
+				);
+	
+				if (keyCode === KEY_DELETE || keyCode === KEY_BACKSPACE) {
+					selection = getSelection($input[0]);
+					if (selection.length) {
+						value = value.substring(0, selection.start) + value.substring(selection.start + selection.length);
+					} else if (keyCode === KEY_BACKSPACE && selection.start) {
+						value = value.substring(0, selection.start - 1) + value.substring(selection.start + 1);
+					} else if (keyCode === KEY_DELETE && typeof selection.start !== 'undefined') {
+						value = value.substring(0, selection.start) + value.substring(selection.start + 1);
+					}
+				} else if (printable) {
+					shift = e.shiftKey;
+					character = String.fromCharCode(e.keyCode);
+					if (shift) character = character.toUpperCase();
+					else character = character.toLowerCase();
+					value += character;
+				}
+			}
+	
+			placeholder = $input.attr('placeholder');
+			if (!value && placeholder) {
+				value = placeholder;
+			}
+	
+			width = measureString(value, $input) + 4;
+			if (width !== currentWidth) {
+				currentWidth = width;
+				$input.width(width);
+				$input.triggerHandler('resize');
+			}
+		};
+	
+		$input.on('keydown keyup update blur', update);
+		update();
+	};
+	
+	var Selectize = function($input, settings) {
+		var key, i, n, dir, input, self = this;
+		input = $input[0];
+		input.selectize = self;
+	
+		// detect rtl environment
+		var computedStyle = window.getComputedStyle && window.getComputedStyle(input, null);
+		dir = computedStyle ? computedStyle.getPropertyValue('direction') : input.currentStyle && input.currentStyle.direction;
+		dir = dir || $input.parents('[dir]:first').attr('dir') || '';
+	
+		// setup default state
+		$.extend(self, {
+			order            : 0,
+			settings         : settings,
+			$input           : $input,
+			tabIndex         : $input.attr('tabindex') || '',
+			tagType          : input.tagName.toLowerCase() === 'select' ? TAG_SELECT : TAG_INPUT,
+			rtl              : /rtl/i.test(dir),
+	
+			eventNS          : '.selectize' + (++Selectize.count),
+			highlightedValue : null,
+			isOpen           : false,
+			isDisabled       : false,
+			isRequired       : $input.is('[required]'),
+			isInvalid        : false,
+			isLocked         : false,
+			isFocused        : false,
+			isInputHidden    : false,
+			isSetup          : false,
+			isShiftDown      : false,
+			isCmdDown        : false,
+			isCtrlDown       : false,
+			ignoreFocus      : false,
+			ignoreBlur       : false,
+			ignoreHover      : false,
+			hasOptions       : false,
+			currentResults   : null,
+			lastValue        : '',
+			caretPos         : 0,
+			loading          : 0,
+			loadedSearches   : {},
+	
+			$activeOption    : null,
+			$activeItems     : [],
+	
+			optgroups        : {},
+			options          : {},
+			userOptions      : {},
+			items            : [],
+			renderCache      : {},
+			onSearchChange   : settings.loadThrottle === null ? self.onSearchChange : debounce(self.onSearchChange, settings.loadThrottle)
+		});
+	
+		// search system
+		self.sifter = new Sifter(this.options, {diacritics: settings.diacritics});
+	
+		// build options table
+		if (self.settings.options) {
+			for (i = 0, n = self.settings.options.length; i < n; i++) {
+				self.registerOption(self.settings.options[i]);
+			}
+			delete self.settings.options;
+		}
+	
+		// build optgroup table
+		if (self.settings.optgroups) {
+			for (i = 0, n = self.settings.optgroups.length; i < n; i++) {
+				self.registerOptionGroup(self.settings.optgroups[i]);
+			}
+			delete self.settings.optgroups;
+		}
+	
+		// option-dependent defaults
+		self.settings.mode = self.settings.mode || (self.settings.maxItems === 1 ? 'single' : 'multi');
+		if (typeof self.settings.hideSelected !== 'boolean') {
+			self.settings.hideSelected = self.settings.mode === 'multi';
+		}
+	
+		self.initializePlugins(self.settings.plugins);
+		self.setupCallbacks();
+		self.setupTemplates();
+		self.setup();
+	};
+	
+	// mixins
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	
+	MicroEvent.mixin(Selectize);
+	MicroPlugin.mixin(Selectize);
+	
+	// methods
+	// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	
+	$.extend(Selectize.prototype, {
+	
+		/**
+		 * Creates all elements and sets up event bindings.
+		 */
+		setup: function() {
+			var self      = this;
+			var settings  = self.settings;
+			var eventNS   = self.eventNS;
+			var $window   = $(window);
+			var $document = $(document);
+			var $input    = self.$input;
+	
+			var $wrapper;
+			var $control;
+			var $control_input;
+			var $dropdown;
+			var $dropdown_content;
+			var $dropdown_parent;
+			var inputMode;
+			var timeout_blur;
+			var timeout_focus;
+			var classes;
+			var classes_plugins;
+	
+			inputMode         = self.settings.mode;
+			classes           = $input.attr('class') || '';
+	
+			$wrapper          = $('<div>').addClass(settings.wrapperClass).addClass(classes).addClass(inputMode);
+			$control          = $('<div>').addClass(settings.inputClass).addClass('items').appendTo($wrapper);
+			$control_input    = $('<input type="text" autocomplete="off" />').appendTo($control).attr('tabindex', $input.is(':disabled') ? '-1' : self.tabIndex);
+			$dropdown_parent  = $(settings.dropdownParent || $wrapper);
+			$dropdown         = $('<div>').addClass(settings.dropdownClass).addClass(inputMode).hide().appendTo($dropdown_parent);
+			$dropdown_content = $('<div>').addClass(settings.dropdownContentClass).appendTo($dropdown);
+	
+			if(self.settings.copyClassesToDropdown) {
+				$dropdown.addClass(classes);
+			}
+	
+			$wrapper.css({
+				width: $input[0].style.width
+			});
+	
+			if (self.plugins.names.length) {
+				classes_plugins = 'plugin-' + self.plugins.names.join(' plugin-');
+				$wrapper.addClass(classes_plugins);
+				$dropdown.addClass(classes_plugins);
+			}
+	
+			if ((settings.maxItems === null || settings.maxItems > 1) && self.tagType === TAG_SELECT) {
+				$input.attr('multiple', 'multiple');
+			}
+	
+			if (self.settings.placeholder) {
+				$control_input.attr('placeholder', settings.placeholder);
+			}
+	
+			// if splitOn was not passed in, construct it from the delimiter to allow pasting universally
+			if (!self.settings.splitOn && self.settings.delimiter) {
+				var delimiterEscaped = self.settings.delimiter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+				self.settings.splitOn = new RegExp('\\s*' + delimiterEscaped + '+\\s*');
+			}
+	
+			if ($input.attr('autocorrect')) {
+				$control_input.attr('autocorrect', $input.attr('autocorrect'));
+			}
+	
+			if ($input.attr('autocapitalize')) {
+				$control_input.attr('autocapitalize', $input.attr('autocapitalize'));
+			}
+	
+			self.$wrapper          = $wrapper;
+			self.$control          = $control;
+			self.$control_input    = $control_input;
+			self.$dropdown         = $dropdown;
+			self.$dropdown_content = $dropdown_content;
+	
+			$dropdown.on('mouseenter', '[data-selectable]', function() { return self.onOptionHover.apply(self, arguments); });
+			$dropdown.on('mousedown click', '[data-selectable]', function() { return self.onOptionSelect.apply(self, arguments); });
+			watchChildEvent($control, 'mousedown', '*:not(input)', function() { return self.onItemSelect.apply(self, arguments); });
+			autoGrow($control_input);
+	
+			$control.on({
+				mousedown : function() { return self.onMouseDown.apply(self, arguments); },
+				click     : function() { return self.onClick.apply(self, arguments); }
+			});
+	
+			$control_input.on({
+				mousedown : function(e) { e.stopPropagation(); },
+				keydown   : function() { return self.onKeyDown.apply(self, arguments); },
+				keyup     : function() { return self.onKeyUp.apply(self, arguments); },
+				keypress  : function() { return self.onKeyPress.apply(self, arguments); },
+				resize    : function() { self.positionDropdown.apply(self, []); },
+				blur      : function() { return self.onBlur.apply(self, arguments); },
+				focus     : function() { self.ignoreBlur = false; return self.onFocus.apply(self, arguments); },
+				paste     : function() { return self.onPaste.apply(self, arguments); }
+			});
+	
+			$document.on('keydown' + eventNS, function(e) {
+				self.isCmdDown = e[IS_MAC ? 'metaKey' : 'ctrlKey'];
+				self.isCtrlDown = e[IS_MAC ? 'altKey' : 'ctrlKey'];
+				self.isShiftDown = e.shiftKey;
+			});
+	
+			$document.on('keyup' + eventNS, function(e) {
+				if (e.keyCode === KEY_CTRL) self.isCtrlDown = false;
+				if (e.keyCode === KEY_SHIFT) self.isShiftDown = false;
+				if (e.keyCode === KEY_CMD) self.isCmdDown = false;
+			});
+	
+			$document.on('mousedown' + eventNS, function(e) {
+				if (self.isFocused) {
+					// prevent events on the dropdown scrollbar from causing the control to blur
+					if (e.target === self.$dropdown[0] || e.target.parentNode === self.$dropdown[0]) {
+						return false;
+					}
+					// blur on click outside
+					if (!self.$control.has(e.target).length && e.target !== self.$control[0]) {
+						self.blur(e.target);
+					}
+				}
+			});
+	
+			$window.on(['scroll' + eventNS, 'resize' + eventNS].join(' '), function() {
+				if (self.isOpen) {
+					self.positionDropdown.apply(self, arguments);
+				}
+			});
+			$window.on('mousemove' + eventNS, function() {
+				self.ignoreHover = false;
+			});
+	
+			// store original children and tab index so that they can be
+			// restored when the destroy() method is called.
+			this.revertSettings = {
+				$children : $input.children().detach(),
+				tabindex  : $input.attr('tabindex')
+			};
+	
+			$input.attr('tabindex', -1).hide().after(self.$wrapper);
+	
+			if ($.isArray(settings.items)) {
+				self.setValue(settings.items);
+				delete settings.items;
+			}
+	
+			// feature detect for the validation API
+			if (SUPPORTS_VALIDITY_API) {
+				$input.on('invalid' + eventNS, function(e) {
+					e.preventDefault();
+					self.isInvalid = true;
+					self.refreshState();
+				});
+			}
+	
+			self.updateOriginalInput();
+			self.refreshItems();
+			self.refreshState();
+			self.updatePlaceholder();
+			self.isSetup = true;
+	
+			if ($input.is(':disabled')) {
+				self.disable();
+			}
+	
+			self.on('change', this.onChange);
+	
+			$input.data('selectize', self);
+			$input.addClass('selectized');
+			self.trigger('initialize');
+	
+			// preload options
+			if (settings.preload === true) {
+				self.onSearchChange('');
+			}
+	
+		},
+	
+		/**
+		 * Sets up default rendering functions.
+		 */
+		setupTemplates: function() {
+			var self = this;
+			var field_label = self.settings.labelField;
+			var field_optgroup = self.settings.optgroupLabelField;
+	
+			var templates = {
+				'optgroup': function(data) {
+					return '<div class="optgroup">' + data.html + '</div>';
+				},
+				'optgroup_header': function(data, escape) {
+					return '<div class="optgroup-header">' + escape(data[field_optgroup]) + '</div>';
+				},
+				'option': function(data, escape) {
+					return '<div class="option">' + escape(data[field_label]) + '</div>';
+				},
+				'item': function(data, escape) {
+					return '<div class="item">' + escape(data[field_label]) + '</div>';
+				},
+				'option_create': function(data, escape) {
+					return '<div class="create">Add <strong>' + escape(data.input) + '</strong>&hellip;</div>';
+				}
+			};
+	
+			self.settings.render = $.extend({}, templates, self.settings.render);
+		},
+	
+		/**
+		 * Maps fired events to callbacks provided
+		 * in the settings used when creating the control.
+		 */
+		setupCallbacks: function() {
+			var key, fn, callbacks = {
+				'initialize'      : 'onInitialize',
+				'change'          : 'onChange',
+				'item_add'        : 'onItemAdd',
+				'item_remove'     : 'onItemRemove',
+				'clear'           : 'onClear',
+				'option_add'      : 'onOptionAdd',
+				'option_remove'   : 'onOptionRemove',
+				'option_clear'    : 'onOptionClear',
+				'optgroup_add'    : 'onOptionGroupAdd',
+				'optgroup_remove' : 'onOptionGroupRemove',
+				'optgroup_clear'  : 'onOptionGroupClear',
+				'dropdown_open'   : 'onDropdownOpen',
+				'dropdown_close'  : 'onDropdownClose',
+				'type'            : 'onType',
+				'load'            : 'onLoad',
+				'focus'           : 'onFocus',
+				'blur'            : 'onBlur'
+			};
+	
+			for (key in callbacks) {
+				if (callbacks.hasOwnProperty(key)) {
+					fn = this.settings[callbacks[key]];
+					if (fn) this.on(key, fn);
+				}
+			}
+		},
+	
+		/**
+		 * Triggered when the main control element
+		 * has a click event.
+		 *
+		 * @param {object} e
+		 * @return {boolean}
+		 */
+		onClick: function(e) {
+			var self = this;
+	
+			// necessary for mobile webkit devices (manual focus triggering
+			// is ignored unless invoked within a click event)
+			if (!self.isFocused) {
+				self.focus();
+				e.preventDefault();
+			}
+		},
+	
+		/**
+		 * Triggered when the main control element
+		 * has a mouse down event.
+		 *
+		 * @param {object} e
+		 * @return {boolean}
+		 */
+		onMouseDown: function(e) {
+			var self = this;
+			var defaultPrevented = e.isDefaultPrevented();
+			var $target = $(e.target);
+	
+			if (self.isFocused) {
+				// retain focus by preventing native handling. if the
+				// event target is the input it should not be modified.
+				// otherwise, text selection within the input won't work.
+				if (e.target !== self.$control_input[0]) {
+					if (self.settings.mode === 'single') {
+						// toggle dropdown
+						self.isOpen ? self.close() : self.open();
+					} else if (!defaultPrevented) {
+						self.setActiveItem(null);
+					}
+					return false;
+				}
+			} else {
+				// give control focus
+				if (!defaultPrevented) {
+					window.setTimeout(function() {
+						self.focus();
+					}, 0);
+				}
+			}
+		},
+	
+		/**
+		 * Triggered when the value of the control has been changed.
+		 * This should propagate the event to the original DOM
+		 * input / select element.
+		 */
+		onChange: function() {
+			this.$input.trigger('change');
+		},
+	
+		/**
+		 * Triggered on <input> paste.
+		 *
+		 * @param {object} e
+		 * @returns {boolean}
+		 */
+		onPaste: function(e) {
+			var self = this;
+			if (self.isFull() || self.isInputHidden || self.isLocked) {
+				e.preventDefault();
+			} else {
+				// If a regex or string is included, this will split the pasted
+				// input and create Items for each separate value
+				if (self.settings.splitOn) {
+					setTimeout(function() {
+						var splitInput = $.trim(self.$control_input.val() || '').split(self.settings.splitOn);
+						for (var i = 0, n = splitInput.length; i < n; i++) {
+							self.createItem(splitInput[i]);
+						}
+					}, 0);
+				}
+			}
+		},
+	
+		/**
+		 * Triggered on <input> keypress.
+		 *
+		 * @param {object} e
+		 * @returns {boolean}
+		 */
+		onKeyPress: function(e) {
+			if (this.isLocked) return e && e.preventDefault();
+			var character = String.fromCharCode(e.keyCode || e.which);
+			if (this.settings.create && this.settings.mode === 'multi' && character === this.settings.delimiter) {
+				this.createItem();
+				e.preventDefault();
+				return false;
+			}
+		},
+	
+		/**
+		 * Triggered on <input> keydown.
+		 *
+		 * @param {object} e
+		 * @returns {boolean}
+		 */
+		onKeyDown: function(e) {
+			var isInput = e.target === this.$control_input[0];
+			var self = this;
+	
+			if (self.isLocked) {
+				if (e.keyCode !== KEY_TAB) {
+					e.preventDefault();
+				}
+				return;
+			}
+	
+			switch (e.keyCode) {
+				case KEY_A:
+					if (self.isCmdDown) {
+						self.selectAll();
+						return;
+					}
+					break;
+				case KEY_ESC:
+					if (self.isOpen) {
+						e.preventDefault();
+						e.stopPropagation();
+						self.close();
+					}
+					return;
+				case KEY_N:
+					if (!e.ctrlKey || e.altKey) break;
+				case KEY_DOWN:
+					if (!self.isOpen && self.hasOptions) {
+						self.open();
+					} else if (self.$activeOption) {
+						self.ignoreHover = true;
+						var $next = self.getAdjacentOption(self.$activeOption, 1);
+						if ($next.length) self.setActiveOption($next, true, true);
+					}
+					e.preventDefault();
+					return;
+				case KEY_P:
+					if (!e.ctrlKey || e.altKey) break;
+				case KEY_UP:
+					if (self.$activeOption) {
+						self.ignoreHover = true;
+						var $prev = self.getAdjacentOption(self.$activeOption, -1);
+						if ($prev.length) self.setActiveOption($prev, true, true);
+					}
+					e.preventDefault();
+					return;
+				case KEY_RETURN:
+					if (self.isOpen && self.$activeOption) {
+						self.onOptionSelect({currentTarget: self.$activeOption});
+						e.preventDefault();
+					}
+					return;
+				case KEY_LEFT:
+					self.advanceSelection(-1, e);
+					return;
+				case KEY_RIGHT:
+					self.advanceSelection(1, e);
+					return;
+				case KEY_TAB:
+					if (self.settings.selectOnTab && self.isOpen && self.$activeOption) {
+						self.onOptionSelect({currentTarget: self.$activeOption});
+	
+						// Default behaviour is to jump to the next field, we only want this
+						// if the current field doesn't accept any more entries
+						if (!self.isFull()) {
+							e.preventDefault();
+						}
+					}
+					if (self.settings.create && self.createItem()) {
+						e.preventDefault();
+					}
+					return;
+				case KEY_BACKSPACE:
+				case KEY_DELETE:
+					self.deleteSelection(e);
+					return;
+			}
+	
+			if ((self.isFull() || self.isInputHidden) && !(IS_MAC ? e.metaKey : e.ctrlKey)) {
+				e.preventDefault();
+				return;
+			}
+		},
+	
+		/**
+		 * Triggered on <input> keyup.
+		 *
+		 * @param {object} e
+		 * @returns {boolean}
+		 */
+		onKeyUp: function(e) {
+			var self = this;
+	
+			if (self.isLocked) return e && e.preventDefault();
+			var value = self.$control_input.val() || '';
+			if (self.lastValue !== value) {
+				self.lastValue = value;
+				self.onSearchChange(value);
+				self.refreshOptions();
+				self.trigger('type', value);
+			}
+		},
+	
+		/**
+		 * Invokes the user-provide option provider / loader.
+		 *
+		 * Note: this function is debounced in the Selectize
+		 * constructor (by `settings.loadDelay` milliseconds)
+		 *
+		 * @param {string} value
+		 */
+		onSearchChange: function(value) {
+			var self = this;
+			var fn = self.settings.load;
+			if (!fn) return;
+			if (self.loadedSearches.hasOwnProperty(value)) return;
+			self.loadedSearches[value] = true;
+			self.load(function(callback) {
+				fn.apply(self, [value, callback]);
+			});
+		},
+	
+		/**
+		 * Triggered on <input> focus.
+		 *
+		 * @param {object} e (optional)
+		 * @returns {boolean}
+		 */
+		onFocus: function(e) {
+			var self = this;
+			var wasFocused = self.isFocused;
+	
+			if (self.isDisabled) {
+				self.blur();
+				e && e.preventDefault();
+				return false;
+			}
+	
+			if (self.ignoreFocus) return;
+			self.isFocused = true;
+			if (self.settings.preload === 'focus') self.onSearchChange('');
+	
+			if (!wasFocused) self.trigger('focus');
+	
+			if (!self.$activeItems.length) {
+				self.showInput();
+				self.setActiveItem(null);
+				self.refreshOptions(!!self.settings.openOnFocus);
+			}
+	
+			self.refreshState();
+		},
+	
+		/**
+		 * Triggered on <input> blur.
+		 *
+		 * @param {object} e
+		 * @param {Element} dest
+		 */
+		onBlur: function(e, dest) {
+			var self = this;
+			if (!self.isFocused) return;
+			self.isFocused = false;
+	
+			if (self.ignoreFocus) {
+				return;
+			} else if (!self.ignoreBlur && document.activeElement === self.$dropdown_content[0]) {
+				// necessary to prevent IE closing the dropdown when the scrollbar is clicked
+				self.ignoreBlur = true;
+				self.onFocus(e);
+				return;
+			}
+	
+			var deactivate = function() {
+				self.close();
+				self.setTextboxValue('');
+				self.setActiveItem(null);
+				self.setActiveOption(null);
+				self.setCaret(self.items.length);
+				self.refreshState();
+	
+				// IE11 bug: element still marked as active
+				(dest || document.body).focus();
+	
+				self.ignoreFocus = false;
+				self.trigger('blur');
+			};
+	
+			self.ignoreFocus = true;
+			if (self.settings.create && self.settings.createOnBlur) {
+				self.createItem(null, false, deactivate);
+			} else {
+				deactivate();
+			}
+		},
+	
+		/**
+		 * Triggered when the user rolls over
+		 * an option in the autocomplete dropdown menu.
+		 *
+		 * @param {object} e
+		 * @returns {boolean}
+		 */
+		onOptionHover: function(e) {
+			if (this.ignoreHover) return;
+			this.setActiveOption(e.currentTarget, false);
+		},
+	
+		/**
+		 * Triggered when the user clicks on an option
+		 * in the autocomplete dropdown menu.
+		 *
+		 * @param {object} e
+		 * @returns {boolean}
+		 */
+		onOptionSelect: function(e) {
+			var value, $target, $option, self = this;
+	
+			if (e.preventDefault) {
+				e.preventDefault();
+				e.stopPropagation();
+			}
+	
+			$target = $(e.currentTarget);
+			if ($target.hasClass('create')) {
+				self.createItem(null, function() {
+					if (self.settings.closeAfterSelect) {
+						self.close();
+					}
+				});
+			} else {
+				value = $target.attr('data-value');
+				if (typeof value !== 'undefined') {
+					self.lastQuery = null;
+					self.setTextboxValue('');
+					self.addItem(value);
+					if (self.settings.closeAfterSelect) {
+						self.close();
+					} else if (!self.settings.hideSelected && e.type && /mouse/.test(e.type)) {
+						self.setActiveOption(self.getOption(value));
+					}
+				}
+			}
+		},
+	
+		/**
+		 * Triggered when the user clicks on an item
+		 * that has been selected.
+		 *
+		 * @param {object} e
+		 * @returns {boolean}
+		 */
+		onItemSelect: function(e) {
+			var self = this;
+	
+			if (self.isLocked) return;
+			if (self.settings.mode === 'multi') {
+				e.preventDefault();
+				self.setActiveItem(e.currentTarget, e);
+			}
+		},
+	
+		/**
+		 * Invokes the provided method that provides
+		 * results to a callback---which are then added
+		 * as options to the control.
+		 *
+		 * @param {function} fn
+		 */
+		load: function(fn) {
+			var self = this;
+			var $wrapper = self.$wrapper.addClass(self.settings.loadingClass);
+	
+			self.loading++;
+			fn.apply(self, [function(results) {
+				self.loading = Math.max(self.loading - 1, 0);
+				if (results && results.length) {
+					self.addOption(results);
+					self.refreshOptions(self.isFocused && !self.isInputHidden);
+				}
+				if (!self.loading) {
+					$wrapper.removeClass(self.settings.loadingClass);
+				}
+				self.trigger('load', results);
+			}]);
+		},
+	
+		/**
+		 * Sets the input field of the control to the specified value.
+		 *
+		 * @param {string} value
+		 */
+		setTextboxValue: function(value) {
+			var $input = this.$control_input;
+			var changed = $input.val() !== value;
+			if (changed) {
+				$input.val(value).triggerHandler('update');
+				this.lastValue = value;
+			}
+		},
+	
+		/**
+		 * Returns the value of the control. If multiple items
+		 * can be selected (e.g. <select multiple>), this returns
+		 * an array. If only one item can be selected, this
+		 * returns a string.
+		 *
+		 * @returns {mixed}
+		 */
+		getValue: function() {
+			if (this.tagType === TAG_SELECT && this.$input.attr('multiple')) {
+				return this.items;
+			} else {
+				return this.items.join(this.settings.delimiter);
+			}
+		},
+	
+		/**
+		 * Resets the selected items to the given value.
+		 *
+		 * @param {mixed} value
+		 */
+		setValue: function(value, silent) {
+			var events = silent ? [] : ['change'];
+	
+			debounce_events(this, events, function() {
+				this.clear(silent);
+				this.addItems(value, silent);
+			});
+		},
+	
+		/**
+		 * Sets the selected item.
+		 *
+		 * @param {object} $item
+		 * @param {object} e (optional)
+		 */
+		setActiveItem: function($item, e) {
+			var self = this;
+			var eventName;
+			var i, idx, begin, end, item, swap;
+			var $last;
+	
+			if (self.settings.mode === 'single') return;
+			$item = $($item);
+	
+			// clear the active selection
+			if (!$item.length) {
+				$(self.$activeItems).removeClass('active');
+				self.$activeItems = [];
+				if (self.isFocused) {
+					self.showInput();
+				}
+				return;
+			}
+	
+			// modify selection
+			eventName = e && e.type.toLowerCase();
+	
+			if (eventName === 'mousedown' && self.isShiftDown && self.$activeItems.length) {
+				$last = self.$control.children('.active:last');
+				begin = Array.prototype.indexOf.apply(self.$control[0].childNodes, [$last[0]]);
+				end   = Array.prototype.indexOf.apply(self.$control[0].childNodes, [$item[0]]);
+				if (begin > end) {
+					swap  = begin;
+					begin = end;
+					end   = swap;
+				}
+				for (i = begin; i <= end; i++) {
+					item = self.$control[0].childNodes[i];
+					if (self.$activeItems.indexOf(item) === -1) {
+						$(item).addClass('active');
+						self.$activeItems.push(item);
+					}
+				}
+				e.preventDefault();
+			} else if ((eventName === 'mousedown' && self.isCtrlDown) || (eventName === 'keydown' && this.isShiftDown)) {
+				if ($item.hasClass('active')) {
+					idx = self.$activeItems.indexOf($item[0]);
+					self.$activeItems.splice(idx, 1);
+					$item.removeClass('active');
+				} else {
+					self.$activeItems.push($item.addClass('active')[0]);
+				}
+			} else {
+				$(self.$activeItems).removeClass('active');
+				self.$activeItems = [$item.addClass('active')[0]];
+			}
+	
+			// ensure control has focus
+			self.hideInput();
+			if (!this.isFocused) {
+				self.focus();
+			}
+		},
+	
+		/**
+		 * Sets the selected item in the dropdown menu
+		 * of available options.
+		 *
+		 * @param {object} $object
+		 * @param {boolean} scroll
+		 * @param {boolean} animate
+		 */
+		setActiveOption: function($option, scroll, animate) {
+			var height_menu, height_item, y;
+			var scroll_top, scroll_bottom;
+			var self = this;
+	
+			if (self.$activeOption) self.$activeOption.removeClass('active');
+			self.$activeOption = null;
+	
+			$option = $($option);
+			if (!$option.length) return;
+	
+			self.$activeOption = $option.addClass('active');
+	
+			if (scroll || !isset(scroll)) {
+	
+				height_menu   = self.$dropdown_content.height();
+				height_item   = self.$activeOption.outerHeight(true);
+				scroll        = self.$dropdown_content.scrollTop() || 0;
+				y             = self.$activeOption.offset().top - self.$dropdown_content.offset().top + scroll;
+				scroll_top    = y;
+				scroll_bottom = y - height_menu + height_item;
+	
+				if (y + height_item > height_menu + scroll) {
+					self.$dropdown_content.stop().animate({scrollTop: scroll_bottom}, animate ? self.settings.scrollDuration : 0);
+				} else if (y < scroll) {
+					self.$dropdown_content.stop().animate({scrollTop: scroll_top}, animate ? self.settings.scrollDuration : 0);
+				}
+	
+			}
+		},
+	
+		/**
+		 * Selects all items (CTRL + A).
+		 */
+		selectAll: function() {
+			var self = this;
+			if (self.settings.mode === 'single') return;
+	
+			self.$activeItems = Array.prototype.slice.apply(self.$control.children(':not(input)').addClass('active'));
+			if (self.$activeItems.length) {
+				self.hideInput();
+				self.close();
+			}
+			self.focus();
+		},
+	
+		/**
+		 * Hides the input element out of view, while
+		 * retaining its focus.
+		 */
+		hideInput: function() {
+			var self = this;
+	
+			self.setTextboxValue('');
+			self.$control_input.css({opacity: 0, position: 'absolute', left: self.rtl ? 10000 : -10000});
+			self.isInputHidden = true;
+		},
+	
+		/**
+		 * Restores input visibility.
+		 */
+		showInput: function() {
+			this.$control_input.css({opacity: 1, position: 'relative', left: 0});
+			this.isInputHidden = false;
+		},
+	
+		/**
+		 * Gives the control focus.
+		 */
+		focus: function() {
+			var self = this;
+			if (self.isDisabled) return;
+	
+			self.ignoreFocus = true;
+			self.$control_input[0].focus();
+			window.setTimeout(function() {
+				self.ignoreFocus = false;
+				self.onFocus();
+			}, 0);
+		},
+	
+		/**
+		 * Forces the control out of focus.
+		 *
+		 * @param {Element} dest
+		 */
+		blur: function(dest) {
+			this.$control_input[0].blur();
+			this.onBlur(null, dest);
+		},
+	
+		/**
+		 * Returns a function that scores an object
+		 * to show how good of a match it is to the
+		 * provided query.
+		 *
+		 * @param {string} query
+		 * @param {object} options
+		 * @return {function}
+		 */
+		getScoreFunction: function(query) {
+			return this.sifter.getScoreFunction(query, this.getSearchOptions());
+		},
+	
+		/**
+		 * Returns search options for sifter (the system
+		 * for scoring and sorting results).
+		 *
+		 * @see https://github.com/brianreavis/sifter.js
+		 * @return {object}
+		 */
+		getSearchOptions: function() {
+			var settings = this.settings;
+			var sort = settings.sortField;
+			if (typeof sort === 'string') {
+				sort = [{field: sort}];
+			}
+	
+			return {
+				fields      : settings.searchField,
+				conjunction : settings.searchConjunction,
+				sort        : sort
+			};
+		},
+	
+		/**
+		 * Searches through available options and returns
+		 * a sorted array of matches.
+		 *
+		 * Returns an object containing:
+		 *
+		 *   - query {string}
+		 *   - tokens {array}
+		 *   - total {int}
+		 *   - items {array}
+		 *
+		 * @param {string} query
+		 * @returns {object}
+		 */
+		search: function(query) {
+			var i, value, score, result, calculateScore;
+			var self     = this;
+			var settings = self.settings;
+			var options  = this.getSearchOptions();
+	
+			// validate user-provided result scoring function
+			if (settings.score) {
+				calculateScore = self.settings.score.apply(this, [query]);
+				if (typeof calculateScore !== 'function') {
+					throw new Error('Selectize "score" setting must be a function that returns a function');
+				}
+			}
+	
+			// perform search
+			if (query !== self.lastQuery) {
+				self.lastQuery = query;
+				result = self.sifter.search(query, $.extend(options, {score: calculateScore}));
+				self.currentResults = result;
+			} else {
+				result = $.extend(true, {}, self.currentResults);
+			}
+	
+			// filter out selected items
+			if (settings.hideSelected) {
+				for (i = result.items.length - 1; i >= 0; i--) {
+					if (self.items.indexOf(hash_key(result.items[i].id)) !== -1) {
+						result.items.splice(i, 1);
+					}
+				}
+			}
+	
+			return result;
+		},
+	
+		/**
+		 * Refreshes the list of available options shown
+		 * in the autocomplete dropdown menu.
+		 *
+		 * @param {boolean} triggerDropdown
+		 */
+		refreshOptions: function(triggerDropdown) {
+			var i, j, k, n, groups, groups_order, option, option_html, optgroup, optgroups, html, html_children, has_create_option;
+			var $active, $active_before, $create;
+	
+			if (typeof triggerDropdown === 'undefined') {
+				triggerDropdown = true;
+			}
+	
+			var self              = this;
+			var query             = $.trim(self.$control_input.val());
+			var results           = self.search(query);
+			var $dropdown_content = self.$dropdown_content;
+			var active_before     = self.$activeOption && hash_key(self.$activeOption.attr('data-value'));
+	
+			// build markup
+			n = results.items.length;
+			if (typeof self.settings.maxOptions === 'number') {
+				n = Math.min(n, self.settings.maxOptions);
+			}
+	
+			// render and group available options individually
+			groups = {};
+			groups_order = [];
+	
+			for (i = 0; i < n; i++) {
+				option      = self.options[results.items[i].id];
+				option_html = self.render('option', option);
+				optgroup    = option[self.settings.optgroupField] || '';
+				optgroups   = $.isArray(optgroup) ? optgroup : [optgroup];
+	
+				for (j = 0, k = optgroups && optgroups.length; j < k; j++) {
+					optgroup = optgroups[j];
+					if (!self.optgroups.hasOwnProperty(optgroup)) {
+						optgroup = '';
+					}
+					if (!groups.hasOwnProperty(optgroup)) {
+						groups[optgroup] = [];
+						groups_order.push(optgroup);
+					}
+					groups[optgroup].push(option_html);
+				}
+			}
+	
+			// sort optgroups
+			if (this.settings.lockOptgroupOrder) {
+				groups_order.sort(function(a, b) {
+					var a_order = self.optgroups[a].$order || 0;
+					var b_order = self.optgroups[b].$order || 0;
+					return a_order - b_order;
+				});
+			}
+	
+			// render optgroup headers & join groups
+			html = [];
+			for (i = 0, n = groups_order.length; i < n; i++) {
+				optgroup = groups_order[i];
+				if (self.optgroups.hasOwnProperty(optgroup) && groups[optgroup].length) {
+					// render the optgroup header and options within it,
+					// then pass it to the wrapper template
+					html_children = self.render('optgroup_header', self.optgroups[optgroup]) || '';
+					html_children += groups[optgroup].join('');
+					html.push(self.render('optgroup', $.extend({}, self.optgroups[optgroup], {
+						html: html_children
+					})));
+				} else {
+					html.push(groups[optgroup].join(''));
+				}
+			}
+	
+			$dropdown_content.html(html.join(''));
+	
+			// highlight matching terms inline
+			if (self.settings.highlight && results.query.length && results.tokens.length) {
+				for (i = 0, n = results.tokens.length; i < n; i++) {
+					highlight($dropdown_content, results.tokens[i].regex);
+				}
+			}
+	
+			// add "selected" class to selected options
+			if (!self.settings.hideSelected) {
+				for (i = 0, n = self.items.length; i < n; i++) {
+					self.getOption(self.items[i]).addClass('selected');
+				}
+			}
+	
+			// add create option
+			has_create_option = self.canCreate(query);
+			if (has_create_option) {
+				$dropdown_content.prepend(self.render('option_create', {input: query}));
+				$create = $($dropdown_content[0].childNodes[0]);
+			}
+	
+			// activate
+			self.hasOptions = results.items.length > 0 || has_create_option;
+			if (self.hasOptions) {
+				if (results.items.length > 0) {
+					$active_before = active_before && self.getOption(active_before);
+					if ($active_before && $active_before.length) {
+						$active = $active_before;
+					} else if (self.settings.mode === 'single' && self.items.length) {
+						$active = self.getOption(self.items[0]);
+					}
+					if (!$active || !$active.length) {
+						if ($create && !self.settings.addPrecedence) {
+							$active = self.getAdjacentOption($create, 1);
+						} else {
+							$active = $dropdown_content.find('[data-selectable]:first');
+						}
+					}
+				} else {
+					$active = $create;
+				}
+				self.setActiveOption($active);
+				if (triggerDropdown && !self.isOpen) { self.open(); }
+			} else {
+				self.setActiveOption(null);
+				if (triggerDropdown && self.isOpen) { self.close(); }
+			}
+		},
+	
+		/**
+		 * Adds an available option. If it already exists,
+		 * nothing will happen. Note: this does not refresh
+		 * the options list dropdown (use `refreshOptions`
+		 * for that).
+		 *
+		 * Usage:
+		 *
+		 *   this.addOption(data)
+		 *
+		 * @param {object|array} data
+		 */
+		addOption: function(data) {
+			var i, n, value, self = this;
+	
+			if ($.isArray(data)) {
+				for (i = 0, n = data.length; i < n; i++) {
+					self.addOption(data[i]);
+				}
+				return;
+			}
+	
+			if (value = self.registerOption(data)) {
+				self.userOptions[value] = true;
+				self.lastQuery = null;
+				self.trigger('option_add', value, data);
+			}
+		},
+	
+		/**
+		 * Registers an option to the pool of options.
+		 *
+		 * @param {object} data
+		 * @return {boolean|string}
+		 */
+		registerOption: function(data) {
+			var key = hash_key(data[this.settings.valueField]);
+			if (!key || this.options.hasOwnProperty(key)) return false;
+			data.$order = data.$order || ++this.order;
+			this.options[key] = data;
+			return key;
+		},
+	
+		/**
+		 * Registers an option group to the pool of option groups.
+		 *
+		 * @param {object} data
+		 * @return {boolean|string}
+		 */
+		registerOptionGroup: function(data) {
+			var key = hash_key(data[this.settings.optgroupValueField]);
+			if (!key) return false;
+	
+			data.$order = data.$order || ++this.order;
+			this.optgroups[key] = data;
+			return key;
+		},
+	
+		/**
+		 * Registers a new optgroup for options
+		 * to be bucketed into.
+		 *
+		 * @param {string} id
+		 * @param {object} data
+		 */
+		addOptionGroup: function(id, data) {
+			data[this.settings.optgroupValueField] = id;
+			if (id = this.registerOptionGroup(data)) {
+				this.trigger('optgroup_add', id, data);
+			}
+		},
+	
+		/**
+		 * Removes an existing option group.
+		 *
+		 * @param {string} id
+		 */
+		removeOptionGroup: function(id) {
+			if (this.optgroups.hasOwnProperty(id)) {
+				delete this.optgroups[id];
+				this.renderCache = {};
+				this.trigger('optgroup_remove', id);
+			}
+		},
+	
+		/**
+		 * Clears all existing option groups.
+		 */
+		clearOptionGroups: function() {
+			this.optgroups = {};
+			this.renderCache = {};
+			this.trigger('optgroup_clear');
+		},
+	
+		/**
+		 * Updates an option available for selection. If
+		 * it is visible in the selected items or options
+		 * dropdown, it will be re-rendered automatically.
+		 *
+		 * @param {string} value
+		 * @param {object} data
+		 */
+		updateOption: function(value, data) {
+			var self = this;
+			var $item, $item_new;
+			var value_new, index_item, cache_items, cache_options, order_old;
+	
+			value     = hash_key(value);
+			value_new = hash_key(data[self.settings.valueField]);
+	
+			// sanity checks
+			if (value === null) return;
+			if (!self.options.hasOwnProperty(value)) return;
+			if (typeof value_new !== 'string') throw new Error('Value must be set in option data');
+	
+			order_old = self.options[value].$order;
+	
+			// update references
+			if (value_new !== value) {
+				delete self.options[value];
+				index_item = self.items.indexOf(value);
+				if (index_item !== -1) {
+					self.items.splice(index_item, 1, value_new);
+				}
+			}
+			data.$order = data.$order || order_old;
+			self.options[value_new] = data;
+	
+			// invalidate render cache
+			cache_items = self.renderCache['item'];
+			cache_options = self.renderCache['option'];
+	
+			if (cache_items) {
+				delete cache_items[value];
+				delete cache_items[value_new];
+			}
+			if (cache_options) {
+				delete cache_options[value];
+				delete cache_options[value_new];
+			}
+	
+			// update the item if it's selected
+			if (self.items.indexOf(value_new) !== -1) {
+				$item = self.getItem(value);
+				$item_new = $(self.render('item', data));
+				if ($item.hasClass('active')) $item_new.addClass('active');
+				$item.replaceWith($item_new);
+			}
+	
+			// invalidate last query because we might have updated the sortField
+			self.lastQuery = null;
+	
+			// update dropdown contents
+			if (self.isOpen) {
+				self.refreshOptions(false);
+			}
+		},
+	
+		/**
+		 * Removes a single option.
+		 *
+		 * @param {string} value
+		 * @param {boolean} silent
+		 */
+		removeOption: function(value, silent) {
+			var self = this;
+			value = hash_key(value);
+	
+			var cache_items = self.renderCache['item'];
+			var cache_options = self.renderCache['option'];
+			if (cache_items) delete cache_items[value];
+			if (cache_options) delete cache_options[value];
+	
+			delete self.userOptions[value];
+			delete self.options[value];
+			self.lastQuery = null;
+			self.trigger('option_remove', value);
+			self.removeItem(value, silent);
+		},
+	
+		/**
+		 * Clears all options.
+		 */
+		clearOptions: function() {
+			var self = this;
+	
+			self.loadedSearches = {};
+			self.userOptions = {};
+			self.renderCache = {};
+			self.options = self.sifter.items = {};
+			self.lastQuery = null;
+			self.trigger('option_clear');
+			self.clear();
+		},
+	
+		/**
+		 * Returns the jQuery element of the option
+		 * matching the given value.
+		 *
+		 * @param {string} value
+		 * @returns {object}
+		 */
+		getOption: function(value) {
+			return this.getElementWithValue(value, this.$dropdown_content.find('[data-selectable]'));
+		},
+	
+		/**
+		 * Returns the jQuery element of the next or
+		 * previous selectable option.
+		 *
+		 * @param {object} $option
+		 * @param {int} direction  can be 1 for next or -1 for previous
+		 * @return {object}
+		 */
+		getAdjacentOption: function($option, direction) {
+			var $options = this.$dropdown.find('[data-selectable]');
+			var index    = $options.index($option) + direction;
+	
+			return index >= 0 && index < $options.length ? $options.eq(index) : $();
+		},
+	
+		/**
+		 * Finds the first element with a "data-value" attribute
+		 * that matches the given value.
+		 *
+		 * @param {mixed} value
+		 * @param {object} $els
+		 * @return {object}
+		 */
+		getElementWithValue: function(value, $els) {
+			value = hash_key(value);
+	
+			if (typeof value !== 'undefined' && value !== null) {
+				for (var i = 0, n = $els.length; i < n; i++) {
+					if ($els[i].getAttribute('data-value') === value) {
+						return $($els[i]);
+					}
+				}
+			}
+	
+			return $();
+		},
+	
+		/**
+		 * Returns the jQuery element of the item
+		 * matching the given value.
+		 *
+		 * @param {string} value
+		 * @returns {object}
+		 */
+		getItem: function(value) {
+			return this.getElementWithValue(value, this.$control.children());
+		},
+	
+		/**
+		 * "Selects" multiple items at once. Adds them to the list
+		 * at the current caret position.
+		 *
+		 * @param {string} value
+		 * @param {boolean} silent
+		 */
+		addItems: function(values, silent) {
+			var items = $.isArray(values) ? values : [values];
+			for (var i = 0, n = items.length; i < n; i++) {
+				this.isPending = (i < n - 1);
+				this.addItem(items[i], silent);
+			}
+		},
+	
+		/**
+		 * "Selects" an item. Adds it to the list
+		 * at the current caret position.
+		 *
+		 * @param {string} value
+		 * @param {boolean} silent
+		 */
+		addItem: function(value, silent) {
+			var events = silent ? [] : ['change'];
+	
+			debounce_events(this, events, function() {
+				var $item, $option, $options;
+				var self = this;
+				var inputMode = self.settings.mode;
+				var i, active, value_next, wasFull;
+				value = hash_key(value);
+	
+				if (self.items.indexOf(value) !== -1) {
+					if (inputMode === 'single') self.close();
+					return;
+				}
+	
+				if (!self.options.hasOwnProperty(value)) return;
+				if (inputMode === 'single') self.clear(silent);
+				if (inputMode === 'multi' && self.isFull()) return;
+	
+				$item = $(self.render('item', self.options[value]));
+				wasFull = self.isFull();
+				self.items.splice(self.caretPos, 0, value);
+				self.insertAtCaret($item);
+				if (!self.isPending || (!wasFull && self.isFull())) {
+					self.refreshState();
+				}
+	
+				if (self.isSetup) {
+					$options = self.$dropdown_content.find('[data-selectable]');
+	
+					// update menu / remove the option (if this is not one item being added as part of series)
+					if (!self.isPending) {
+						$option = self.getOption(value);
+						value_next = self.getAdjacentOption($option, 1).attr('data-value');
+						self.refreshOptions(self.isFocused && inputMode !== 'single');
+						if (value_next) {
+							self.setActiveOption(self.getOption(value_next));
+						}
+					}
+	
+					// hide the menu if the maximum number of items have been selected or no options are left
+					if (!$options.length || self.isFull()) {
+						self.close();
+					} else {
+						self.positionDropdown();
+					}
+	
+					self.updatePlaceholder();
+					self.trigger('item_add', value, $item);
+					self.updateOriginalInput({silent: silent});
+				}
+			});
+		},
+	
+		/**
+		 * Removes the selected item matching
+		 * the provided value.
+		 *
+		 * @param {string} value
+		 */
+		removeItem: function(value, silent) {
+			var self = this;
+			var $item, i, idx;
+	
+			$item = (typeof value === 'object') ? value : self.getItem(value);
+			value = hash_key($item.attr('data-value'));
+			i = self.items.indexOf(value);
+	
+			if (i !== -1) {
+				$item.remove();
+				if ($item.hasClass('active')) {
+					idx = self.$activeItems.indexOf($item[0]);
+					self.$activeItems.splice(idx, 1);
+				}
+	
+				self.items.splice(i, 1);
+				self.lastQuery = null;
+				if (!self.settings.persist && self.userOptions.hasOwnProperty(value)) {
+					self.removeOption(value, silent);
+				}
+	
+				if (i < self.caretPos) {
+					self.setCaret(self.caretPos - 1);
+				}
+	
+				self.refreshState();
+				self.updatePlaceholder();
+				self.updateOriginalInput({silent: silent});
+				self.positionDropdown();
+				self.trigger('item_remove', value, $item);
+			}
+		},
+	
+		/**
+		 * Invokes the `create` method provided in the
+		 * selectize options that should provide the data
+		 * for the new item, given the user input.
+		 *
+		 * Once this completes, it will be added
+		 * to the item list.
+		 *
+		 * @param {string} value
+		 * @param {boolean} [triggerDropdown]
+		 * @param {function} [callback]
+		 * @return {boolean}
+		 */
+		createItem: function(input, triggerDropdown) {
+			var self  = this;
+			var caret = self.caretPos;
+			input = input || $.trim(self.$control_input.val() || '');
+	
+			var callback = arguments[arguments.length - 1];
+			if (typeof callback !== 'function') callback = function() {};
+	
+			if (typeof triggerDropdown !== 'boolean') {
+				triggerDropdown = true;
+			}
+	
+			if (!self.canCreate(input)) {
+				callback();
+				return false;
+			}
+	
+			self.lock();
+	
+			var setup = (typeof self.settings.create === 'function') ? this.settings.create : function(input) {
+				var data = {};
+				data[self.settings.labelField] = input;
+				data[self.settings.valueField] = input;
+				return data;
+			};
+	
+			var create = once(function(data) {
+				self.unlock();
+	
+				if (!data || typeof data !== 'object') return callback();
+				var value = hash_key(data[self.settings.valueField]);
+				if (typeof value !== 'string') return callback();
+	
+				self.setTextboxValue('');
+				self.addOption(data);
+				self.setCaret(caret);
+				self.addItem(value);
+				self.refreshOptions(triggerDropdown && self.settings.mode !== 'single');
+				callback(data);
+			});
+	
+			var output = setup.apply(this, [input, create]);
+			if (typeof output !== 'undefined') {
+				create(output);
+			}
+	
+			return true;
+		},
+	
+		/**
+		 * Re-renders the selected item lists.
+		 */
+		refreshItems: function() {
+			this.lastQuery = null;
+	
+			if (this.isSetup) {
+				this.addItem(this.items);
+			}
+	
+			this.refreshState();
+			this.updateOriginalInput();
+		},
+	
+		/**
+		 * Updates all state-dependent attributes
+		 * and CSS classes.
+		 */
+		refreshState: function() {
+			var invalid, self = this;
+			if (self.isRequired) {
+				if (self.items.length) self.isInvalid = false;
+				self.$control_input.prop('required', invalid);
+			}
+			self.refreshClasses();
+		},
+	
+		/**
+		 * Updates all state-dependent CSS classes.
+		 */
+		refreshClasses: function() {
+			var self     = this;
+			var isFull   = self.isFull();
+			var isLocked = self.isLocked;
+	
+			self.$wrapper
+				.toggleClass('rtl', self.rtl);
+	
+			self.$control
+				.toggleClass('focus', self.isFocused)
+				.toggleClass('disabled', self.isDisabled)
+				.toggleClass('required', self.isRequired)
+				.toggleClass('invalid', self.isInvalid)
+				.toggleClass('locked', isLocked)
+				.toggleClass('full', isFull).toggleClass('not-full', !isFull)
+				.toggleClass('input-active', self.isFocused && !self.isInputHidden)
+				.toggleClass('dropdown-active', self.isOpen)
+				.toggleClass('has-options', !$.isEmptyObject(self.options))
+				.toggleClass('has-items', self.items.length > 0);
+	
+			self.$control_input.data('grow', !isFull && !isLocked);
+		},
+	
+		/**
+		 * Determines whether or not more items can be added
+		 * to the control without exceeding the user-defined maximum.
+		 *
+		 * @returns {boolean}
+		 */
+		isFull: function() {
+			return this.settings.maxItems !== null && this.items.length >= this.settings.maxItems;
+		},
+	
+		/**
+		 * Refreshes the original <select> or <input>
+		 * element to reflect the current state.
+		 */
+		updateOriginalInput: function(opts) {
+			var i, n, options, label, self = this;
+			opts = opts || {};
+	
+			if (self.tagType === TAG_SELECT) {
+				options = [];
+				for (i = 0, n = self.items.length; i < n; i++) {
+					label = self.options[self.items[i]][self.settings.labelField] || '';
+					options.push('<option value="' + escape_html(self.items[i]) + '" selected="selected">' + escape_html(label) + '</option>');
+				}
+				if (!options.length && !this.$input.attr('multiple')) {
+					options.push('<option value="" selected="selected"></option>');
+				}
+				self.$input.html(options.join(''));
+			} else {
+				self.$input.val(self.getValue());
+				self.$input.attr('value',self.$input.val());
+			}
+	
+			if (self.isSetup) {
+				if (!opts.silent) {
+					self.trigger('change', self.$input.val());
+				}
+			}
+		},
+	
+		/**
+		 * Shows/hide the input placeholder depending
+		 * on if there items in the list already.
+		 */
+		updatePlaceholder: function() {
+			if (!this.settings.placeholder) return;
+			var $input = this.$control_input;
+	
+			if (this.items.length) {
+				$input.removeAttr('placeholder');
+			} else {
+				$input.attr('placeholder', this.settings.placeholder);
+			}
+			$input.triggerHandler('update', {force: true});
+		},
+	
+		/**
+		 * Shows the autocomplete dropdown containing
+		 * the available options.
+		 */
+		open: function() {
+			var self = this;
+	
+			if (self.isLocked || self.isOpen || (self.settings.mode === 'multi' && self.isFull())) return;
+			self.focus();
+			self.isOpen = true;
+			self.refreshState();
+			self.$dropdown.css({visibility: 'hidden', display: 'block'});
+			self.positionDropdown();
+			self.$dropdown.css({visibility: 'visible'});
+			self.trigger('dropdown_open', self.$dropdown);
+		},
+	
+		/**
+		 * Closes the autocomplete dropdown menu.
+		 */
+		close: function() {
+			var self = this;
+			var trigger = self.isOpen;
+	
+			if (self.settings.mode === 'single' && self.items.length) {
+				self.hideInput();
+			}
+	
+			self.isOpen = false;
+			self.$dropdown.hide();
+			self.setActiveOption(null);
+			self.refreshState();
+	
+			if (trigger) self.trigger('dropdown_close', self.$dropdown);
+		},
+	
+		/**
+		 * Calculates and applies the appropriate
+		 * position of the dropdown.
+		 */
+		positionDropdown: function() {
+			var $control = this.$control;
+			var offset = this.settings.dropdownParent === 'body' ? $control.offset() : $control.position();
+			offset.top += $control.outerHeight(true);
+	
+			this.$dropdown.css({
+				width : $control.outerWidth(),
+				top   : offset.top,
+				left  : offset.left
+			});
+		},
+	
+		/**
+		 * Resets / clears all selected items
+		 * from the control.
+		 *
+		 * @param {boolean} silent
+		 */
+		clear: function(silent) {
+			var self = this;
+	
+			if (!self.items.length) return;
+			self.$control.children(':not(input)').remove();
+			self.items = [];
+			self.lastQuery = null;
+			self.setCaret(0);
+			self.setActiveItem(null);
+			self.updatePlaceholder();
+			self.updateOriginalInput({silent: silent});
+			self.refreshState();
+			self.showInput();
+			self.trigger('clear');
+		},
+	
+		/**
+		 * A helper method for inserting an element
+		 * at the current caret position.
+		 *
+		 * @param {object} $el
+		 */
+		insertAtCaret: function($el) {
+			var caret = Math.min(this.caretPos, this.items.length);
+			if (caret === 0) {
+				this.$control.prepend($el);
+			} else {
+				$(this.$control[0].childNodes[caret]).before($el);
+			}
+			this.setCaret(caret + 1);
+		},
+	
+		/**
+		 * Removes the current selected item(s).
+		 *
+		 * @param {object} e (optional)
+		 * @returns {boolean}
+		 */
+		deleteSelection: function(e) {
+			var i, n, direction, selection, values, caret, option_select, $option_select, $tail;
+			var self = this;
+	
+			direction = (e && e.keyCode === KEY_BACKSPACE) ? -1 : 1;
+			selection = getSelection(self.$control_input[0]);
+	
+			if (self.$activeOption && !self.settings.hideSelected) {
+				option_select = self.getAdjacentOption(self.$activeOption, -1).attr('data-value');
+			}
+	
+			// determine items that will be removed
+			values = [];
+	
+			if (self.$activeItems.length) {
+				$tail = self.$control.children('.active:' + (direction > 0 ? 'last' : 'first'));
+				caret = self.$control.children(':not(input)').index($tail);
+				if (direction > 0) { caret++; }
+	
+				for (i = 0, n = self.$activeItems.length; i < n; i++) {
+					values.push($(self.$activeItems[i]).attr('data-value'));
+				}
+				if (e) {
+					e.preventDefault();
+					e.stopPropagation();
+				}
+			} else if ((self.isFocused || self.settings.mode === 'single') && self.items.length) {
+				if (direction < 0 && selection.start === 0 && selection.length === 0) {
+					values.push(self.items[self.caretPos - 1]);
+				} else if (direction > 0 && selection.start === self.$control_input.val().length) {
+					values.push(self.items[self.caretPos]);
+				}
+			}
+	
+			// allow the callback to abort
+			if (!values.length || (typeof self.settings.onDelete === 'function' && self.settings.onDelete.apply(self, [values]) === false)) {
+				return false;
+			}
+	
+			// perform removal
+			if (typeof caret !== 'undefined') {
+				self.setCaret(caret);
+			}
+			while (values.length) {
+				self.removeItem(values.pop());
+			}
+	
+			self.showInput();
+			self.positionDropdown();
+			self.refreshOptions(true);
+	
+			// select previous option
+			if (option_select) {
+				$option_select = self.getOption(option_select);
+				if ($option_select.length) {
+					self.setActiveOption($option_select);
+				}
+			}
+	
+			return true;
+		},
+	
+		/**
+		 * Selects the previous / next item (depending
+		 * on the `direction` argument).
+		 *
+		 * > 0 - right
+		 * < 0 - left
+		 *
+		 * @param {int} direction
+		 * @param {object} e (optional)
+		 */
+		advanceSelection: function(direction, e) {
+			var tail, selection, idx, valueLength, cursorAtEdge, $tail;
+			var self = this;
+	
+			if (direction === 0) return;
+			if (self.rtl) direction *= -1;
+	
+			tail = direction > 0 ? 'last' : 'first';
+			selection = getSelection(self.$control_input[0]);
+	
+			if (self.isFocused && !self.isInputHidden) {
+				valueLength = self.$control_input.val().length;
+				cursorAtEdge = direction < 0
+					? selection.start === 0 && selection.length === 0
+					: selection.start === valueLength;
+	
+				if (cursorAtEdge && !valueLength) {
+					self.advanceCaret(direction, e);
+				}
+			} else {
+				$tail = self.$control.children('.active:' + tail);
+				if ($tail.length) {
+					idx = self.$control.children(':not(input)').index($tail);
+					self.setActiveItem(null);
+					self.setCaret(direction > 0 ? idx + 1 : idx);
+				}
+			}
+		},
+	
+		/**
+		 * Moves the caret left / right.
+		 *
+		 * @param {int} direction
+		 * @param {object} e (optional)
+		 */
+		advanceCaret: function(direction, e) {
+			var self = this, fn, $adj;
+	
+			if (direction === 0) return;
+	
+			fn = direction > 0 ? 'next' : 'prev';
+			if (self.isShiftDown) {
+				$adj = self.$control_input[fn]();
+				if ($adj.length) {
+					self.hideInput();
+					self.setActiveItem($adj);
+					e && e.preventDefault();
+				}
+			} else {
+				self.setCaret(self.caretPos + direction);
+			}
+		},
+	
+		/**
+		 * Moves the caret to the specified index.
+		 *
+		 * @param {int} i
+		 */
+		setCaret: function(i) {
+			var self = this;
+	
+			if (self.settings.mode === 'single') {
+				i = self.items.length;
+			} else {
+				i = Math.max(0, Math.min(self.items.length, i));
+			}
+	
+			if(!self.isPending) {
+				// the input must be moved by leaving it in place and moving the
+				// siblings, due to the fact that focus cannot be restored once lost
+				// on mobile webkit devices
+				var j, n, fn, $children, $child;
+				$children = self.$control.children(':not(input)');
+				for (j = 0, n = $children.length; j < n; j++) {
+					$child = $($children[j]).detach();
+					if (j <  i) {
+						self.$control_input.before($child);
+					} else {
+						self.$control.append($child);
+					}
+				}
+			}
+	
+			self.caretPos = i;
+		},
+	
+		/**
+		 * Disables user input on the control. Used while
+		 * items are being asynchronously created.
+		 */
+		lock: function() {
+			this.close();
+			this.isLocked = true;
+			this.refreshState();
+		},
+	
+		/**
+		 * Re-enables user input on the control.
+		 */
+		unlock: function() {
+			this.isLocked = false;
+			this.refreshState();
+		},
+	
+		/**
+		 * Disables user input on the control completely.
+		 * While disabled, it cannot receive focus.
+		 */
+		disable: function() {
+			var self = this;
+			self.$input.prop('disabled', true);
+			self.$control_input.prop('disabled', true).prop('tabindex', -1);
+			self.isDisabled = true;
+			self.lock();
+		},
+	
+		/**
+		 * Enables the control so that it can respond
+		 * to focus and user input.
+		 */
+		enable: function() {
+			var self = this;
+			self.$input.prop('disabled', false);
+			self.$control_input.prop('disabled', false).prop('tabindex', self.tabIndex);
+			self.isDisabled = false;
+			self.unlock();
+		},
+	
+		/**
+		 * Completely destroys the control and
+		 * unbinds all event listeners so that it can
+		 * be garbage collected.
+		 */
+		destroy: function() {
+			var self = this;
+			var eventNS = self.eventNS;
+			var revertSettings = self.revertSettings;
+	
+			self.trigger('destroy');
+			self.off();
+			self.$wrapper.remove();
+			self.$dropdown.remove();
+	
+			self.$input
+				.html('')
+				.append(revertSettings.$children)
+				.removeAttr('tabindex')
+				.removeClass('selectized')
+				.attr({tabindex: revertSettings.tabindex})
+				.show();
+	
+			self.$control_input.removeData('grow');
+			self.$input.removeData('selectize');
+	
+			$(window).off(eventNS);
+			$(document).off(eventNS);
+			$(document.body).off(eventNS);
+	
+			delete self.$input[0].selectize;
+		},
+	
+		/**
+		 * A helper method for rendering "item" and
+		 * "option" templates, given the data.
+		 *
+		 * @param {string} templateName
+		 * @param {object} data
+		 * @returns {string}
+		 */
+		render: function(templateName, data) {
+			var value, id, label;
+			var html = '';
+			var cache = false;
+			var self = this;
+			var regex_tag = /^[\t \r\n]*<([a-z][a-z0-9\-_]*(?:\:[a-z][a-z0-9\-_]*)?)/i;
+	
+			if (templateName === 'option' || templateName === 'item') {
+				value = hash_key(data[self.settings.valueField]);
+				cache = !!value;
+			}
+	
+			// pull markup from cache if it exists
+			if (cache) {
+				if (!isset(self.renderCache[templateName])) {
+					self.renderCache[templateName] = {};
+				}
+				if (self.renderCache[templateName].hasOwnProperty(value)) {
+					return self.renderCache[templateName][value];
+				}
+			}
+	
+			// render markup
+			html = self.settings.render[templateName].apply(this, [data, escape_html]);
+	
+			// add mandatory attributes
+			if (templateName === 'option' || templateName === 'option_create') {
+				html = html.replace(regex_tag, '<$1 data-selectable');
+			}
+			if (templateName === 'optgroup') {
+				id = data[self.settings.optgroupValueField] || '';
+				html = html.replace(regex_tag, '<$1 data-group="' + escape_replace(escape_html(id)) + '"');
+			}
+			if (templateName === 'option' || templateName === 'item') {
+				html = html.replace(regex_tag, '<$1 data-value="' + escape_replace(escape_html(value || '')) + '"');
+			}
+	
+			// update cache
+			if (cache) {
+				self.renderCache[templateName][value] = html;
+			}
+	
+			return html;
+		},
+	
+		/**
+		 * Clears the render cache for a template. If
+		 * no template is given, clears all render
+		 * caches.
+		 *
+		 * @param {string} templateName
+		 */
+		clearCache: function(templateName) {
+			var self = this;
+			if (typeof templateName === 'undefined') {
+				self.renderCache = {};
+			} else {
+				delete self.renderCache[templateName];
+			}
+		},
+	
+		/**
+		 * Determines whether or not to display the
+		 * create item prompt, given a user input.
+		 *
+		 * @param {string} input
+		 * @return {boolean}
+		 */
+		canCreate: function(input) {
+			var self = this;
+			if (!self.settings.create) return false;
+			var filter = self.settings.createFilter;
+			return input.length
+				&& (typeof filter !== 'function' || filter.apply(self, [input]))
+				&& (typeof filter !== 'string' || new RegExp(filter).test(input))
+				&& (!(filter instanceof RegExp) || filter.test(input));
+		}
+	
+	});
+	
+	
+	Selectize.count = 0;
+	Selectize.defaults = {
+		options: [],
+		optgroups: [],
+	
+		plugins: [],
+		delimiter: ',',
+		splitOn: null, // regexp or string for splitting up values from a paste command
+		persist: true,
+		diacritics: true,
+		create: false,
+		createOnBlur: false,
+		createFilter: null,
+		highlight: true,
+		openOnFocus: true,
+		maxOptions: 1000,
+		maxItems: null,
+		hideSelected: null,
+		addPrecedence: false,
+		selectOnTab: false,
+		preload: false,
+		allowEmptyOption: false,
+		closeAfterSelect: false,
+	
+		scrollDuration: 60,
+		loadThrottle: 300,
+		loadingClass: 'loading',
+	
+		dataAttr: 'data-data',
+		optgroupField: 'optgroup',
+		valueField: 'value',
+		labelField: 'text',
+		optgroupLabelField: 'label',
+		optgroupValueField: 'value',
+		lockOptgroupOrder: false,
+	
+		sortField: '$order',
+		searchField: ['text'],
+		searchConjunction: 'and',
+	
+		mode: null,
+		wrapperClass: 'selectize-control',
+		inputClass: 'selectize-input',
+		dropdownClass: 'selectize-dropdown',
+		dropdownContentClass: 'selectize-dropdown-content',
+	
+		dropdownParent: null,
+	
+		copyClassesToDropdown: true,
+	
+		/*
+		load                 : null, // function(query, callback) { ... }
+		score                : null, // function(search) { ... }
+		onInitialize         : null, // function() { ... }
+		onChange             : null, // function(value) { ... }
+		onItemAdd            : null, // function(value, $item) { ... }
+		onItemRemove         : null, // function(value) { ... }
+		onClear              : null, // function() { ... }
+		onOptionAdd          : null, // function(value, data) { ... }
+		onOptionRemove       : null, // function(value) { ... }
+		onOptionClear        : null, // function() { ... }
+		onOptionGroupAdd     : null, // function(id, data) { ... }
+		onOptionGroupRemove  : null, // function(id) { ... }
+		onOptionGroupClear   : null, // function() { ... }
+		onDropdownOpen       : null, // function($dropdown) { ... }
+		onDropdownClose      : null, // function($dropdown) { ... }
+		onType               : null, // function(str) { ... }
+		onDelete             : null, // function(values) { ... }
+		*/
+	
+		render: {
+			/*
+			item: null,
+			optgroup: null,
+			optgroup_header: null,
+			option: null,
+			option_create: null
+			*/
+		}
+	};
+	
+	
+	$.fn.selectize = function(settings_user) {
+		var defaults             = $.fn.selectize.defaults;
+		var settings             = $.extend({}, defaults, settings_user);
+		var attr_data            = settings.dataAttr;
+		var field_label          = settings.labelField;
+		var field_value          = settings.valueField;
+		var field_optgroup       = settings.optgroupField;
+		var field_optgroup_label = settings.optgroupLabelField;
+		var field_optgroup_value = settings.optgroupValueField;
+	
+		/**
+		 * Initializes selectize from a <input type="text"> element.
+		 *
+		 * @param {object} $input
+		 * @param {object} settings_element
+		 */
+		var init_textbox = function($input, settings_element) {
+			var i, n, values, option;
+	
+			var data_raw = $input.attr(attr_data);
+	
+			if (!data_raw) {
+				var value = $.trim($input.val() || '');
+				if (!settings.allowEmptyOption && !value.length) return;
+				values = value.split(settings.delimiter);
+				for (i = 0, n = values.length; i < n; i++) {
+					option = {};
+					option[field_label] = values[i];
+					option[field_value] = values[i];
+					settings_element.options.push(option);
+				}
+				settings_element.items = values;
+			} else {
+				settings_element.options = JSON.parse(data_raw);
+				for (i = 0, n = settings_element.options.length; i < n; i++) {
+					settings_element.items.push(settings_element.options[i][field_value]);
+				}
+			}
+		};
+	
+		/**
+		 * Initializes selectize from a <select> element.
+		 *
+		 * @param {object} $input
+		 * @param {object} settings_element
+		 */
+		var init_select = function($input, settings_element) {
+			var i, n, tagName, $children, order = 0;
+			var options = settings_element.options;
+			var optionsMap = {};
+	
+			var readData = function($el) {
+				var data = attr_data && $el.attr(attr_data);
+				if (typeof data === 'string' && data.length) {
+					return JSON.parse(data);
+				}
+				return null;
+			};
+	
+			var addOption = function($option, group) {
+				$option = $($option);
+	
+				var value = hash_key($option.attr('value'));
+				if (!value && !settings.allowEmptyOption) return;
+	
+				// if the option already exists, it's probably been
+				// duplicated in another optgroup. in this case, push
+				// the current group to the "optgroup" property on the
+				// existing option so that it's rendered in both places.
+				if (optionsMap.hasOwnProperty(value)) {
+					if (group) {
+						var arr = optionsMap[value][field_optgroup];
+						if (!arr) {
+							optionsMap[value][field_optgroup] = group;
+						} else if (!$.isArray(arr)) {
+							optionsMap[value][field_optgroup] = [arr, group];
+						} else {
+							arr.push(group);
+						}
+					}
+					return;
+				}
+	
+				var option             = readData($option) || {};
+				option[field_label]    = option[field_label] || $option.text();
+				option[field_value]    = option[field_value] || value;
+				option[field_optgroup] = option[field_optgroup] || group;
+	
+				optionsMap[value] = option;
+				options.push(option);
+	
+				if ($option.is(':selected')) {
+					settings_element.items.push(value);
+				}
+			};
+	
+			var addGroup = function($optgroup) {
+				var i, n, id, optgroup, $options;
+	
+				$optgroup = $($optgroup);
+				id = $optgroup.attr('label');
+	
+				if (id) {
+					optgroup = readData($optgroup) || {};
+					optgroup[field_optgroup_label] = id;
+					optgroup[field_optgroup_value] = id;
+					settings_element.optgroups.push(optgroup);
+				}
+	
+				$options = $('option', $optgroup);
+				for (i = 0, n = $options.length; i < n; i++) {
+					addOption($options[i], id);
+				}
+			};
+	
+			settings_element.maxItems = $input.attr('multiple') ? null : 1;
+	
+			$children = $input.children();
+			for (i = 0, n = $children.length; i < n; i++) {
+				tagName = $children[i].tagName.toLowerCase();
+				if (tagName === 'optgroup') {
+					addGroup($children[i]);
+				} else if (tagName === 'option') {
+					addOption($children[i]);
+				}
+			}
+		};
+	
+		return this.each(function() {
+			if (this.selectize) return;
+	
+			var instance;
+			var $input = $(this);
+			var tag_name = this.tagName.toLowerCase();
+			var placeholder = $input.attr('placeholder') || $input.attr('data-placeholder');
+			if (!placeholder && !settings.allowEmptyOption) {
+				placeholder = $input.children('option[value=""]').text();
+			}
+	
+			var settings_element = {
+				'placeholder' : placeholder,
+				'options'     : [],
+				'optgroups'   : [],
+				'items'       : []
+			};
+	
+			if (tag_name === 'select') {
+				init_select($input, settings_element);
+			} else {
+				init_textbox($input, settings_element);
+			}
+	
+			instance = new Selectize($input, $.extend(true, {}, defaults, settings_element, settings_user));
+		});
+	};
+	
+	$.fn.selectize.defaults = Selectize.defaults;
+	$.fn.selectize.support = {
+		validity: SUPPORTS_VALIDITY_API
+	};
+	
+	
+	Selectize.define('drag_drop', function(options) {
+		if (!$.fn.sortable) throw new Error('The "drag_drop" plugin requires jQuery UI "sortable".');
+		if (this.settings.mode !== 'multi') return;
+		var self = this;
+	
+		self.lock = (function() {
+			var original = self.lock;
+			return function() {
+				var sortable = self.$control.data('sortable');
+				if (sortable) sortable.disable();
+				return original.apply(self, arguments);
+			};
+		})();
+	
+		self.unlock = (function() {
+			var original = self.unlock;
+			return function() {
+				var sortable = self.$control.data('sortable');
+				if (sortable) sortable.enable();
+				return original.apply(self, arguments);
+			};
+		})();
+	
+		self.setup = (function() {
+			var original = self.setup;
+			return function() {
+				original.apply(this, arguments);
+	
+				var $control = self.$control.sortable({
+					items: '[data-value]',
+					forcePlaceholderSize: true,
+					disabled: self.isLocked,
+					start: function(e, ui) {
+						ui.placeholder.css('width', ui.helper.css('width'));
+						$control.css({overflow: 'visible'});
+					},
+					stop: function() {
+						$control.css({overflow: 'hidden'});
+						var active = self.$activeItems ? self.$activeItems.slice() : null;
+						var values = [];
+						$control.children('[data-value]').each(function() {
+							values.push($(this).attr('data-value'));
+						});
+						self.setValue(values);
+						self.setActiveItem(active);
+					}
+				});
+			};
+		})();
+	
+	});
+	
+	Selectize.define('dropdown_header', function(options) {
+		var self = this;
+	
+		options = $.extend({
+			title         : 'Untitled',
+			headerClass   : 'selectize-dropdown-header',
+			titleRowClass : 'selectize-dropdown-header-title',
+			labelClass    : 'selectize-dropdown-header-label',
+			closeClass    : 'selectize-dropdown-header-close',
+	
+			html: function(data) {
+				return (
+					'<div class="' + data.headerClass + '">' +
+						'<div class="' + data.titleRowClass + '">' +
+							'<span class="' + data.labelClass + '">' + data.title + '</span>' +
+							'<a href="javascript:void(0)" class="' + data.closeClass + '">&times;</a>' +
+						'</div>' +
+					'</div>'
+				);
+			}
+		}, options);
+	
+		self.setup = (function() {
+			var original = self.setup;
+			return function() {
+				original.apply(self, arguments);
+				self.$dropdown_header = $(options.html(options));
+				self.$dropdown.prepend(self.$dropdown_header);
+			};
+		})();
+	
+	});
+	
+	Selectize.define('optgroup_columns', function(options) {
+		var self = this;
+	
+		options = $.extend({
+			equalizeWidth  : true,
+			equalizeHeight : true
+		}, options);
+	
+		this.getAdjacentOption = function($option, direction) {
+			var $options = $option.closest('[data-group]').find('[data-selectable]');
+			var index    = $options.index($option) + direction;
+	
+			return index >= 0 && index < $options.length ? $options.eq(index) : $();
+		};
+	
+		this.onKeyDown = (function() {
+			var original = self.onKeyDown;
+			return function(e) {
+				var index, $option, $options, $optgroup;
+	
+				if (this.isOpen && (e.keyCode === KEY_LEFT || e.keyCode === KEY_RIGHT)) {
+					self.ignoreHover = true;
+					$optgroup = this.$activeOption.closest('[data-group]');
+					index = $optgroup.find('[data-selectable]').index(this.$activeOption);
+	
+					if(e.keyCode === KEY_LEFT) {
+						$optgroup = $optgroup.prev('[data-group]');
+					} else {
+						$optgroup = $optgroup.next('[data-group]');
+					}
+	
+					$options = $optgroup.find('[data-selectable]');
+					$option  = $options.eq(Math.min($options.length - 1, index));
+					if ($option.length) {
+						this.setActiveOption($option);
+					}
+					return;
+				}
+	
+				return original.apply(this, arguments);
+			};
+		})();
+	
+		var getScrollbarWidth = function() {
+			var div;
+			var width = getScrollbarWidth.width;
+			var doc = document;
+	
+			if (typeof width === 'undefined') {
+				div = doc.createElement('div');
+				div.innerHTML = '<div style="width:50px;height:50px;position:absolute;left:-50px;top:-50px;overflow:auto;"><div style="width:1px;height:100px;"></div></div>';
+				div = div.firstChild;
+				doc.body.appendChild(div);
+				width = getScrollbarWidth.width = div.offsetWidth - div.clientWidth;
+				doc.body.removeChild(div);
+			}
+			return width;
+		};
+	
+		var equalizeSizes = function() {
+			var i, n, height_max, width, width_last, width_parent, $optgroups;
+	
+			$optgroups = $('[data-group]', self.$dropdown_content);
+			n = $optgroups.length;
+			if (!n || !self.$dropdown_content.width()) return;
+	
+			if (options.equalizeHeight) {
+				height_max = 0;
+				for (i = 0; i < n; i++) {
+					height_max = Math.max(height_max, $optgroups.eq(i).height());
+				}
+				$optgroups.css({height: height_max});
+			}
+	
+			if (options.equalizeWidth) {
+				width_parent = self.$dropdown_content.innerWidth() - getScrollbarWidth();
+				width = Math.round(width_parent / n);
+				$optgroups.css({width: width});
+				if (n > 1) {
+					width_last = width_parent - width * (n - 1);
+					$optgroups.eq(n - 1).css({width: width_last});
+				}
+			}
+		};
+	
+		if (options.equalizeHeight || options.equalizeWidth) {
+			hook.after(this, 'positionDropdown', equalizeSizes);
+			hook.after(this, 'refreshOptions', equalizeSizes);
+		}
+	
+	
+	});
+	
+	Selectize.define('remove_button', function(options) {
+		if (this.settings.mode === 'single') return;
+	
+		options = $.extend({
+			label     : '&times;',
+			title     : 'Remove',
+			className : 'remove',
+			append    : true
+		}, options);
+	
+		var self = this;
+		var html = '<a href="javascript:void(0)" class="' + options.className + '" tabindex="-1" title="' + escape_html(options.title) + '">' + options.label + '</a>';
+	
+		/**
+		 * Appends an element as a child (with raw HTML).
+		 *
+		 * @param {string} html_container
+		 * @param {string} html_element
+		 * @return {string}
+		 */
+		var append = function(html_container, html_element) {
+			var pos = html_container.search(/(<\/[^>]+>\s*)$/);
+			return html_container.substring(0, pos) + html_element + html_container.substring(pos);
+		};
+	
+		this.setup = (function() {
+			var original = self.setup;
+			return function() {
+				// override the item rendering method to add the button to each
+				if (options.append) {
+					var render_item = self.settings.render.item;
+					self.settings.render.item = function(data) {
+						return append(render_item.apply(this, arguments), html);
+					};
+				}
+	
+				original.apply(this, arguments);
+	
+				// add event listener
+				this.$control.on('click', '.' + options.className, function(e) {
+					e.preventDefault();
+					if (self.isLocked) return;
+	
+					var $item = $(e.currentTarget).parent();
+					self.setActiveItem($item);
+					if (self.deleteSelection()) {
+						self.setCaret(self.items.length);
+					}
+				});
+	
+			};
+		})();
+	
+	});
+	
+	Selectize.define('restore_on_backspace', function(options) {
+		var self = this;
+	
+		options.text = options.text || function(option) {
+			return option[this.settings.labelField];
+		};
+	
+		this.onKeyDown = (function() {
+			var original = self.onKeyDown;
+			return function(e) {
+				var index, option;
+				if (e.keyCode === KEY_BACKSPACE && this.$control_input.val() === '' && !this.$activeItems.length) {
+					index = this.caretPos - 1;
+					if (index >= 0 && index < this.items.length) {
+						option = this.options[this.items[index]];
+						if (this.deleteSelection(e)) {
+							this.setTextboxValue(options.text.apply(this, [option]));
+							this.refreshOptions(true);
+						}
+						e.preventDefault();
+						return;
+					}
+				}
+				return original.apply(this, arguments);
+			};
+		})();
+	});
+	
+
+	return Selectize;
+}));
+
+;(function(){
+
+/**
+ * Require the module at `name`.
+ *
+ * @param {String} name
+ * @return {Object} exports
+ * @api public
+ */
+
+function require(name) {
+  var module = require.modules[name];
+  if (!module) throw new Error('failed to require "' + name + '"');
+
+  if (!('exports' in module) && typeof module.definition === 'function') {
+    module.client = module.component = true;
+    module.definition.call(this, module.exports = {}, module);
+    delete module.definition;
+  }
+
+  return module.exports;
+}
+
+/**
+ * Meta info, accessible in the global scope unless you use AMD option.
+ */
+
+require.loader = 'component';
+
+/**
+ * Internal helper object, contains a sorting function for semantiv versioning
+ */
+require.helper = {};
+require.helper.semVerSort = function(a, b) {
+  var aArray = a.version.split('.');
+  var bArray = b.version.split('.');
+  for (var i=0; i<aArray.length; ++i) {
+    var aInt = parseInt(aArray[i], 10);
+    var bInt = parseInt(bArray[i], 10);
+    if (aInt === bInt) {
+      var aLex = aArray[i].substr((""+aInt).length);
+      var bLex = bArray[i].substr((""+bInt).length);
+      if (aLex === '' && bLex !== '') return 1;
+      if (aLex !== '' && bLex === '') return -1;
+      if (aLex !== '' && bLex !== '') return aLex > bLex ? 1 : -1;
+      continue;
+    } else if (aInt > bInt) {
+      return 1;
+    } else {
+      return -1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Find and require a module which name starts with the provided name.
+ * If multiple modules exists, the highest semver is used. 
+ * This function can only be used for remote dependencies.
+
+ * @param {String} name - module name: `user~repo`
+ * @param {Boolean} returnPath - returns the canonical require path if true, 
+ *                               otherwise it returns the epxorted module
+ */
+require.latest = function (name, returnPath) {
+  function showError(name) {
+    throw new Error('failed to find latest module of "' + name + '"');
+  }
+  // only remotes with semvers, ignore local files conataining a '/'
+  var versionRegexp = /(.*)~(.*)@v?(\d+\.\d+\.\d+[^\/]*)$/;
+  var remoteRegexp = /(.*)~(.*)/;
+  if (!remoteRegexp.test(name)) showError(name);
+  var moduleNames = Object.keys(require.modules);
+  var semVerCandidates = [];
+  var otherCandidates = []; // for instance: name of the git branch
+  for (var i=0; i<moduleNames.length; i++) {
+    var moduleName = moduleNames[i];
+    if (new RegExp(name + '@').test(moduleName)) {
+        var version = moduleName.substr(name.length+1);
+        var semVerMatch = versionRegexp.exec(moduleName);
+        if (semVerMatch != null) {
+          semVerCandidates.push({version: version, name: moduleName});
+        } else {
+          otherCandidates.push({version: version, name: moduleName});
+        } 
+    }
+  }
+  if (semVerCandidates.concat(otherCandidates).length === 0) {
+    showError(name);
+  }
+  if (semVerCandidates.length > 0) {
+    var module = semVerCandidates.sort(require.helper.semVerSort).pop().name;
+    if (returnPath === true) {
+      return module;
+    }
+    return require(module);
+  }
+  // if the build contains more than one branch of the same module
+  // you should not use this funciton
+  var module = otherCandidates.sort(function(a, b) {return a.name > b.name})[0].name;
+  if (returnPath === true) {
+    return module;
+  }
+  return require(module);
+}
+
+/**
+ * Registered modules.
+ */
+
+require.modules = {};
+
+/**
+ * Register module at `name` with callback `definition`.
+ *
+ * @param {String} name
+ * @param {Function} definition
+ * @api private
+ */
+
+require.register = function (name, definition) {
+  require.modules[name] = {
+    definition: definition
+  };
+};
+
+/**
+ * Define a module's exports immediately with `exports`.
+ *
+ * @param {String} name
+ * @param {Generic} exports
+ * @api private
+ */
+
+require.define = function (name, exports) {
+  require.modules[name] = {
+    exports: exports
+  };
+};
+require.register("abpetkov~transitionize@0.0.3", function (exports, module) {
+
+/**
+ * Transitionize 0.0.2
+ * https://github.com/abpetkov/transitionize
+ *
+ * Authored by Alexander Petkov
+ * https://github.com/abpetkov
+ *
+ * Copyright 2013, Alexander Petkov
+ * License: The MIT License (MIT)
+ * http://opensource.org/licenses/MIT
+ *
+ */
+
+/**
+ * Expose `Transitionize`.
+ */
+
+module.exports = Transitionize;
+
+/**
+ * Initialize new Transitionize.
+ *
+ * @param {Object} element
+ * @param {Object} props
+ * @api public
+ */
+
+function Transitionize(element, props) {
+  if (!(this instanceof Transitionize)) return new Transitionize(element, props);
+
+  this.element = element;
+  this.props = props || {};
+  this.init();
+}
+
+/**
+ * Detect if Safari.
+ *
+ * @returns {Boolean}
+ * @api private
+ */
+
+Transitionize.prototype.isSafari = function() {
+  return (/Safari/).test(navigator.userAgent) && (/Apple Computer/).test(navigator.vendor);
+};
+
+/**
+ * Loop though the object and push the keys and values in an array.
+ * Apply the CSS3 transition to the element and prefix with -webkit- for Safari.
+ *
+ * @api private
+ */
+
+Transitionize.prototype.init = function() {
+  var transitions = [];
+
+  for (var key in this.props) {
+    transitions.push(key + ' ' + this.props[key]);
+  }
+
+  this.element.style.transition = transitions.join(', ');
+  if (this.isSafari()) this.element.style.webkitTransition = transitions.join(', ');
+};
+});
+
+require.register("ftlabs~fastclick@v0.6.11", function (exports, module) {
+/**
+ * @preserve FastClick: polyfill to remove click delays on browsers with touch UIs.
+ *
+ * @version 0.6.11
+ * @codingstandard ftlabs-jsv2
+ * @copyright The Financial Times Limited [All Rights Reserved]
+ * @license MIT License (see LICENSE.txt)
+ */
+
+/*jslint browser:true, node:true*/
+/*global define, Event, Node*/
+
+
+/**
+ * Instantiate fast-clicking listeners on the specificed layer.
+ *
+ * @constructor
+ * @param {Element} layer The layer to listen on
+ */
+function FastClick(layer) {
+	'use strict';
+	var oldOnClick, self = this;
+
+
+	/**
+	 * Whether a click is currently being tracked.
+	 *
+	 * @type boolean
+	 */
+	this.trackingClick = false;
+
+
+	/**
+	 * Timestamp for when when click tracking started.
+	 *
+	 * @type number
+	 */
+	this.trackingClickStart = 0;
+
+
+	/**
+	 * The element being tracked for a click.
+	 *
+	 * @type EventTarget
+	 */
+	this.targetElement = null;
+
+
+	/**
+	 * X-coordinate of touch start event.
+	 *
+	 * @type number
+	 */
+	this.touchStartX = 0;
+
+
+	/**
+	 * Y-coordinate of touch start event.
+	 *
+	 * @type number
+	 */
+	this.touchStartY = 0;
+
+
+	/**
+	 * ID of the last touch, retrieved from Touch.identifier.
+	 *
+	 * @type number
+	 */
+	this.lastTouchIdentifier = 0;
+
+
+	/**
+	 * Touchmove boundary, beyond which a click will be cancelled.
+	 *
+	 * @type number
+	 */
+	this.touchBoundary = 10;
+
+
+	/**
+	 * The FastClick layer.
+	 *
+	 * @type Element
+	 */
+	this.layer = layer;
+
+	if (!layer || !layer.nodeType) {
+		throw new TypeError('Layer must be a document node');
+	}
+
+	/** @type function() */
+	this.onClick = function() { return FastClick.prototype.onClick.apply(self, arguments); };
+
+	/** @type function() */
+	this.onMouse = function() { return FastClick.prototype.onMouse.apply(self, arguments); };
+
+	/** @type function() */
+	this.onTouchStart = function() { return FastClick.prototype.onTouchStart.apply(self, arguments); };
+
+	/** @type function() */
+	this.onTouchMove = function() { return FastClick.prototype.onTouchMove.apply(self, arguments); };
+
+	/** @type function() */
+	this.onTouchEnd = function() { return FastClick.prototype.onTouchEnd.apply(self, arguments); };
+
+	/** @type function() */
+	this.onTouchCancel = function() { return FastClick.prototype.onTouchCancel.apply(self, arguments); };
+
+	if (FastClick.notNeeded(layer)) {
+		return;
+	}
+
+	// Set up event handlers as required
+	if (this.deviceIsAndroid) {
+		layer.addEventListener('mouseover', this.onMouse, true);
+		layer.addEventListener('mousedown', this.onMouse, true);
+		layer.addEventListener('mouseup', this.onMouse, true);
+	}
+
+	layer.addEventListener('click', this.onClick, true);
+	layer.addEventListener('touchstart', this.onTouchStart, false);
+	layer.addEventListener('touchmove', this.onTouchMove, false);
+	layer.addEventListener('touchend', this.onTouchEnd, false);
+	layer.addEventListener('touchcancel', this.onTouchCancel, false);
+
+	// Hack is required for browsers that don't support Event#stopImmediatePropagation (e.g. Android 2)
+	// which is how FastClick normally stops click events bubbling to callbacks registered on the FastClick
+	// layer when they are cancelled.
+	if (!Event.prototype.stopImmediatePropagation) {
+		layer.removeEventListener = function(type, callback, capture) {
+			var rmv = Node.prototype.removeEventListener;
+			if (type === 'click') {
+				rmv.call(layer, type, callback.hijacked || callback, capture);
+			} else {
+				rmv.call(layer, type, callback, capture);
+			}
+		};
+
+		layer.addEventListener = function(type, callback, capture) {
+			var adv = Node.prototype.addEventListener;
+			if (type === 'click') {
+				adv.call(layer, type, callback.hijacked || (callback.hijacked = function(event) {
+					if (!event.propagationStopped) {
+						callback(event);
+					}
+				}), capture);
+			} else {
+				adv.call(layer, type, callback, capture);
+			}
+		};
+	}
+
+	// If a handler is already declared in the element's onclick attribute, it will be fired before
+	// FastClick's onClick handler. Fix this by pulling out the user-defined handler function and
+	// adding it as listener.
+	if (typeof layer.onclick === 'function') {
+
+		// Android browser on at least 3.2 requires a new reference to the function in layer.onclick
+		// - the old one won't work if passed to addEventListener directly.
+		oldOnClick = layer.onclick;
+		layer.addEventListener('click', function(event) {
+			oldOnClick(event);
+		}, false);
+		layer.onclick = null;
+	}
+}
+
+
+/**
+ * Android requires exceptions.
+ *
+ * @type boolean
+ */
+FastClick.prototype.deviceIsAndroid = navigator.userAgent.indexOf('Android') > 0;
+
+
+/**
+ * iOS requires exceptions.
+ *
+ * @type boolean
+ */
+FastClick.prototype.deviceIsIOS = /iP(ad|hone|od)/.test(navigator.userAgent);
+
+
+/**
+ * iOS 4 requires an exception for select elements.
+ *
+ * @type boolean
+ */
+FastClick.prototype.deviceIsIOS4 = FastClick.prototype.deviceIsIOS && (/OS 4_\d(_\d)?/).test(navigator.userAgent);
+
+
+/**
+ * iOS 6.0(+?) requires the target element to be manually derived
+ *
+ * @type boolean
+ */
+FastClick.prototype.deviceIsIOSWithBadTarget = FastClick.prototype.deviceIsIOS && (/OS ([6-9]|\d{2})_\d/).test(navigator.userAgent);
+
+
+/**
+ * Determine whether a given element requires a native click.
+ *
+ * @param {EventTarget|Element} target Target DOM element
+ * @returns {boolean} Returns true if the element needs a native click
+ */
+FastClick.prototype.needsClick = function(target) {
+	'use strict';
+	switch (target.nodeName.toLowerCase()) {
+
+	// Don't send a synthetic click to disabled inputs (issue #62)
+	case 'button':
+	case 'select':
+	case 'textarea':
+		if (target.disabled) {
+			return true;
+		}
+
+		break;
+	case 'input':
+
+		// File inputs need real clicks on iOS 6 due to a browser bug (issue #68)
+		if ((this.deviceIsIOS && target.type === 'file') || target.disabled) {
+			return true;
+		}
+
+		break;
+	case 'label':
+	case 'video':
+		return true;
+	}
+
+	return (/\bneedsclick\b/).test(target.className);
+};
+
+
+/**
+ * Determine whether a given element requires a call to focus to simulate click into element.
+ *
+ * @param {EventTarget|Element} target Target DOM element
+ * @returns {boolean} Returns true if the element requires a call to focus to simulate native click.
+ */
+FastClick.prototype.needsFocus = function(target) {
+	'use strict';
+	switch (target.nodeName.toLowerCase()) {
+	case 'textarea':
+		return true;
+	case 'select':
+		return !this.deviceIsAndroid;
+	case 'input':
+		switch (target.type) {
+		case 'button':
+		case 'checkbox':
+		case 'file':
+		case 'image':
+		case 'radio':
+		case 'submit':
+			return false;
+		}
+
+		// No point in attempting to focus disabled inputs
+		return !target.disabled && !target.readOnly;
+	default:
+		return (/\bneedsfocus\b/).test(target.className);
+	}
+};
+
+
+/**
+ * Send a click event to the specified element.
+ *
+ * @param {EventTarget|Element} targetElement
+ * @param {Event} event
+ */
+FastClick.prototype.sendClick = function(targetElement, event) {
+	'use strict';
+	var clickEvent, touch;
+
+	// On some Android devices activeElement needs to be blurred otherwise the synthetic click will have no effect (#24)
+	if (document.activeElement && document.activeElement !== targetElement) {
+		document.activeElement.blur();
+	}
+
+	touch = event.changedTouches[0];
+
+	// Synthesise a click event, with an extra attribute so it can be tracked
+	clickEvent = document.createEvent('MouseEvents');
+	clickEvent.initMouseEvent(this.determineEventType(targetElement), true, true, window, 1, touch.screenX, touch.screenY, touch.clientX, touch.clientY, false, false, false, false, 0, null);
+	clickEvent.forwardedTouchEvent = true;
+	targetElement.dispatchEvent(clickEvent);
+};
+
+FastClick.prototype.determineEventType = function(targetElement) {
+	'use strict';
+
+	//Issue #159: Android Chrome Select Box does not open with a synthetic click event
+	if (this.deviceIsAndroid && targetElement.tagName.toLowerCase() === 'select') {
+		return 'mousedown';
+	}
+
+	return 'click';
+};
+
+
+/**
+ * @param {EventTarget|Element} targetElement
+ */
+FastClick.prototype.focus = function(targetElement) {
+	'use strict';
+	var length;
+
+	// Issue #160: on iOS 7, some input elements (e.g. date datetime) throw a vague TypeError on setSelectionRange. These elements don't have an integer value for the selectionStart and selectionEnd properties, but unfortunately that can't be used for detection because accessing the properties also throws a TypeError. Just check the type instead. Filed as Apple bug #15122724.
+	if (this.deviceIsIOS && targetElement.setSelectionRange && targetElement.type.indexOf('date') !== 0 && targetElement.type !== 'time') {
+		length = targetElement.value.length;
+		targetElement.setSelectionRange(length, length);
+	} else {
+		targetElement.focus();
+	}
+};
+
+
+/**
+ * Check whether the given target element is a child of a scrollable layer and if so, set a flag on it.
+ *
+ * @param {EventTarget|Element} targetElement
+ */
+FastClick.prototype.updateScrollParent = function(targetElement) {
+	'use strict';
+	var scrollParent, parentElement;
+
+	scrollParent = targetElement.fastClickScrollParent;
+
+	// Attempt to discover whether the target element is contained within a scrollable layer. Re-check if the
+	// target element was moved to another parent.
+	if (!scrollParent || !scrollParent.contains(targetElement)) {
+		parentElement = targetElement;
+		do {
+			if (parentElement.scrollHeight > parentElement.offsetHeight) {
+				scrollParent = parentElement;
+				targetElement.fastClickScrollParent = parentElement;
+				break;
+			}
+
+			parentElement = parentElement.parentElement;
+		} while (parentElement);
+	}
+
+	// Always update the scroll top tracker if possible.
+	if (scrollParent) {
+		scrollParent.fastClickLastScrollTop = scrollParent.scrollTop;
+	}
+};
+
+
+/**
+ * @param {EventTarget} targetElement
+ * @returns {Element|EventTarget}
+ */
+FastClick.prototype.getTargetElementFromEventTarget = function(eventTarget) {
+	'use strict';
+
+	// On some older browsers (notably Safari on iOS 4.1 - see issue #56) the event target may be a text node.
+	if (eventTarget.nodeType === Node.TEXT_NODE) {
+		return eventTarget.parentNode;
+	}
+
+	return eventTarget;
+};
+
+
+/**
+ * On touch start, record the position and scroll offset.
+ *
+ * @param {Event} event
+ * @returns {boolean}
+ */
+FastClick.prototype.onTouchStart = function(event) {
+	'use strict';
+	var targetElement, touch, selection;
+
+	// Ignore multiple touches, otherwise pinch-to-zoom is prevented if both fingers are on the FastClick element (issue #111).
+	if (event.targetTouches.length > 1) {
+		return true;
+	}
+
+	targetElement = this.getTargetElementFromEventTarget(event.target);
+	touch = event.targetTouches[0];
+
+	if (this.deviceIsIOS) {
+
+		// Only trusted events will deselect text on iOS (issue #49)
+		selection = window.getSelection();
+		if (selection.rangeCount && !selection.isCollapsed) {
+			return true;
+		}
+
+		if (!this.deviceIsIOS4) {
+
+			// Weird things happen on iOS when an alert or confirm dialog is opened from a click event callback (issue #23):
+			// when the user next taps anywhere else on the page, new touchstart and touchend events are dispatched
+			// with the same identifier as the touch event that previously triggered the click that triggered the alert.
+			// Sadly, there is an issue on iOS 4 that causes some normal touch events to have the same identifier as an
+			// immediately preceeding touch event (issue #52), so this fix is unavailable on that platform.
+			if (touch.identifier === this.lastTouchIdentifier) {
+				event.preventDefault();
+				return false;
+			}
+
+			this.lastTouchIdentifier = touch.identifier;
+
+			// If the target element is a child of a scrollable layer (using -webkit-overflow-scrolling: touch) and:
+			// 1) the user does a fling scroll on the scrollable layer
+			// 2) the user stops the fling scroll with another tap
+			// then the event.target of the last 'touchend' event will be the element that was under the user's finger
+			// when the fling scroll was started, causing FastClick to send a click event to that layer - unless a check
+			// is made to ensure that a parent layer was not scrolled before sending a synthetic click (issue #42).
+			this.updateScrollParent(targetElement);
+		}
+	}
+
+	this.trackingClick = true;
+	this.trackingClickStart = event.timeStamp;
+	this.targetElement = targetElement;
+
+	this.touchStartX = touch.pageX;
+	this.touchStartY = touch.pageY;
+
+	// Prevent phantom clicks on fast double-tap (issue #36)
+	if ((event.timeStamp - this.lastClickTime) < 200) {
+		event.preventDefault();
+	}
+
+	return true;
+};
+
+
+/**
+ * Based on a touchmove event object, check whether the touch has moved past a boundary since it started.
+ *
+ * @param {Event} event
+ * @returns {boolean}
+ */
+FastClick.prototype.touchHasMoved = function(event) {
+	'use strict';
+	var touch = event.changedTouches[0], boundary = this.touchBoundary;
+
+	if (Math.abs(touch.pageX - this.touchStartX) > boundary || Math.abs(touch.pageY - this.touchStartY) > boundary) {
+		return true;
+	}
+
+	return false;
+};
+
+
+/**
+ * Update the last position.
+ *
+ * @param {Event} event
+ * @returns {boolean}
+ */
+FastClick.prototype.onTouchMove = function(event) {
+	'use strict';
+	if (!this.trackingClick) {
+		return true;
+	}
+
+	// If the touch has moved, cancel the click tracking
+	if (this.targetElement !== this.getTargetElementFromEventTarget(event.target) || this.touchHasMoved(event)) {
+		this.trackingClick = false;
+		this.targetElement = null;
+	}
+
+	return true;
+};
+
+
+/**
+ * Attempt to find the labelled control for the given label element.
+ *
+ * @param {EventTarget|HTMLLabelElement} labelElement
+ * @returns {Element|null}
+ */
+FastClick.prototype.findControl = function(labelElement) {
+	'use strict';
+
+	// Fast path for newer browsers supporting the HTML5 control attribute
+	if (labelElement.control !== undefined) {
+		return labelElement.control;
+	}
+
+	// All browsers under test that support touch events also support the HTML5 htmlFor attribute
+	if (labelElement.htmlFor) {
+		return document.getElementById(labelElement.htmlFor);
+	}
+
+	// If no for attribute exists, attempt to retrieve the first labellable descendant element
+	// the list of which is defined here: http://www.w3.org/TR/html5/forms.html#category-label
+	return labelElement.querySelector('button, input:not([type=hidden]), keygen, meter, output, progress, select, textarea');
+};
+
+
+/**
+ * On touch end, determine whether to send a click event at once.
+ *
+ * @param {Event} event
+ * @returns {boolean}
+ */
+FastClick.prototype.onTouchEnd = function(event) {
+	'use strict';
+	var forElement, trackingClickStart, targetTagName, scrollParent, touch, targetElement = this.targetElement;
+
+	if (!this.trackingClick) {
+		return true;
+	}
+
+	// Prevent phantom clicks on fast double-tap (issue #36)
+	if ((event.timeStamp - this.lastClickTime) < 200) {
+		this.cancelNextClick = true;
+		return true;
+	}
+
+	// Reset to prevent wrong click cancel on input (issue #156).
+	this.cancelNextClick = false;
+
+	this.lastClickTime = event.timeStamp;
+
+	trackingClickStart = this.trackingClickStart;
+	this.trackingClick = false;
+	this.trackingClickStart = 0;
+
+	// On some iOS devices, the targetElement supplied with the event is invalid if the layer
+	// is performing a transition or scroll, and has to be re-detected manually. Note that
+	// for this to function correctly, it must be called *after* the event target is checked!
+	// See issue #57; also filed as rdar://13048589 .
+	if (this.deviceIsIOSWithBadTarget) {
+		touch = event.changedTouches[0];
+
+		// In certain cases arguments of elementFromPoint can be negative, so prevent setting targetElement to null
+		targetElement = document.elementFromPoint(touch.pageX - window.pageXOffset, touch.pageY - window.pageYOffset) || targetElement;
+		targetElement.fastClickScrollParent = this.targetElement.fastClickScrollParent;
+	}
+
+	targetTagName = targetElement.tagName.toLowerCase();
+	if (targetTagName === 'label') {
+		forElement = this.findControl(targetElement);
+		if (forElement) {
+			this.focus(targetElement);
+			if (this.deviceIsAndroid) {
+				return false;
+			}
+
+			targetElement = forElement;
+		}
+	} else if (this.needsFocus(targetElement)) {
+
+		// Case 1: If the touch started a while ago (best guess is 100ms based on tests for issue #36) then focus will be triggered anyway. Return early and unset the target element reference so that the subsequent click will be allowed through.
+		// Case 2: Without this exception for input elements tapped when the document is contained in an iframe, then any inputted text won't be visible even though the value attribute is updated as the user types (issue #37).
+		if ((event.timeStamp - trackingClickStart) > 100 || (this.deviceIsIOS && window.top !== window && targetTagName === 'input')) {
+			this.targetElement = null;
+			return false;
+		}
+
+		this.focus(targetElement);
+
+		// Select elements need the event to go through on iOS 4, otherwise the selector menu won't open.
+		if (!this.deviceIsIOS4 || targetTagName !== 'select') {
+			this.targetElement = null;
+			event.preventDefault();
+		}
+
+		return false;
+	}
+
+	if (this.deviceIsIOS && !this.deviceIsIOS4) {
+
+		// Don't send a synthetic click event if the target element is contained within a parent layer that was scrolled
+		// and this tap is being used to stop the scrolling (usually initiated by a fling - issue #42).
+		scrollParent = targetElement.fastClickScrollParent;
+		if (scrollParent && scrollParent.fastClickLastScrollTop !== scrollParent.scrollTop) {
+			return true;
+		}
+	}
+
+	// Prevent the actual click from going though - unless the target node is marked as requiring
+	// real clicks or if it is in the whitelist in which case only non-programmatic clicks are permitted.
+	if (!this.needsClick(targetElement)) {
+		event.preventDefault();
+		this.sendClick(targetElement, event);
+	}
+
+	return false;
+};
+
+
+/**
+ * On touch cancel, stop tracking the click.
+ *
+ * @returns {void}
+ */
+FastClick.prototype.onTouchCancel = function() {
+	'use strict';
+	this.trackingClick = false;
+	this.targetElement = null;
+};
+
+
+/**
+ * Determine mouse events which should be permitted.
+ *
+ * @param {Event} event
+ * @returns {boolean}
+ */
+FastClick.prototype.onMouse = function(event) {
+	'use strict';
+
+	// If a target element was never set (because a touch event was never fired) allow the event
+	if (!this.targetElement) {
+		return true;
+	}
+
+	if (event.forwardedTouchEvent) {
+		return true;
+	}
+
+	// Programmatically generated events targeting a specific element should be permitted
+	if (!event.cancelable) {
+		return true;
+	}
+
+	// Derive and check the target element to see whether the mouse event needs to be permitted;
+	// unless explicitly enabled, prevent non-touch click events from triggering actions,
+	// to prevent ghost/doubleclicks.
+	if (!this.needsClick(this.targetElement) || this.cancelNextClick) {
+
+		// Prevent any user-added listeners declared on FastClick element from being fired.
+		if (event.stopImmediatePropagation) {
+			event.stopImmediatePropagation();
+		} else {
+
+			// Part of the hack for browsers that don't support Event#stopImmediatePropagation (e.g. Android 2)
+			event.propagationStopped = true;
+		}
+
+		// Cancel the event
+		event.stopPropagation();
+		event.preventDefault();
+
+		return false;
+	}
+
+	// If the mouse event is permitted, return true for the action to go through.
+	return true;
+};
+
+
+/**
+ * On actual clicks, determine whether this is a touch-generated click, a click action occurring
+ * naturally after a delay after a touch (which needs to be cancelled to avoid duplication), or
+ * an actual click which should be permitted.
+ *
+ * @param {Event} event
+ * @returns {boolean}
+ */
+FastClick.prototype.onClick = function(event) {
+	'use strict';
+	var permitted;
+
+	// It's possible for another FastClick-like library delivered with third-party code to fire a click event before FastClick does (issue #44). In that case, set the click-tracking flag back to false and return early. This will cause onTouchEnd to return early.
+	if (this.trackingClick) {
+		this.targetElement = null;
+		this.trackingClick = false;
+		return true;
+	}
+
+	// Very odd behaviour on iOS (issue #18): if a submit element is present inside a form and the user hits enter in the iOS simulator or clicks the Go button on the pop-up OS keyboard the a kind of 'fake' click event will be triggered with the submit-type input element as the target.
+	if (event.target.type === 'submit' && event.detail === 0) {
+		return true;
+	}
+
+	permitted = this.onMouse(event);
+
+	// Only unset targetElement if the click is not permitted. This will ensure that the check for !targetElement in onMouse fails and the browser's click doesn't go through.
+	if (!permitted) {
+		this.targetElement = null;
+	}
+
+	// If clicks are permitted, return true for the action to go through.
+	return permitted;
+};
+
+
+/**
+ * Remove all FastClick's event listeners.
+ *
+ * @returns {void}
+ */
+FastClick.prototype.destroy = function() {
+	'use strict';
+	var layer = this.layer;
+
+	if (this.deviceIsAndroid) {
+		layer.removeEventListener('mouseover', this.onMouse, true);
+		layer.removeEventListener('mousedown', this.onMouse, true);
+		layer.removeEventListener('mouseup', this.onMouse, true);
+	}
+
+	layer.removeEventListener('click', this.onClick, true);
+	layer.removeEventListener('touchstart', this.onTouchStart, false);
+	layer.removeEventListener('touchmove', this.onTouchMove, false);
+	layer.removeEventListener('touchend', this.onTouchEnd, false);
+	layer.removeEventListener('touchcancel', this.onTouchCancel, false);
+};
+
+
+/**
+ * Check whether FastClick is needed.
+ *
+ * @param {Element} layer The layer to listen on
+ */
+FastClick.notNeeded = function(layer) {
+	'use strict';
+	var metaViewport;
+	var chromeVersion;
+
+	// Devices that don't support touch don't need FastClick
+	if (typeof window.ontouchstart === 'undefined') {
+		return true;
+	}
+
+	// Chrome version - zero for other browsers
+	chromeVersion = +(/Chrome\/([0-9]+)/.exec(navigator.userAgent) || [,0])[1];
+
+	if (chromeVersion) {
+
+		if (FastClick.prototype.deviceIsAndroid) {
+			metaViewport = document.querySelector('meta[name=viewport]');
+			
+			if (metaViewport) {
+				// Chrome on Android with user-scalable="no" doesn't need FastClick (issue #89)
+				if (metaViewport.content.indexOf('user-scalable=no') !== -1) {
+					return true;
+				}
+				// Chrome 32 and above with width=device-width or less don't need FastClick
+				if (chromeVersion > 31 && window.innerWidth <= window.screen.width) {
+					return true;
+				}
+			}
+
+		// Chrome desktop doesn't need FastClick (issue #15)
+		} else {
+			return true;
+		}
+	}
+
+	// IE10 with -ms-touch-action: none, which disables double-tap-to-zoom (issue #97)
+	if (layer.style.msTouchAction === 'none') {
+		return true;
+	}
+
+	return false;
+};
+
+
+/**
+ * Factory method for creating a FastClick object
+ *
+ * @param {Element} layer The layer to listen on
+ */
+FastClick.attach = function(layer) {
+	'use strict';
+	return new FastClick(layer);
+};
+
+
+if (typeof define !== 'undefined' && define.amd) {
+
+	// AMD. Register as an anonymous module.
+	define(function() {
+		'use strict';
+		return FastClick;
+	});
+} else if (typeof module !== 'undefined' && module.exports) {
+	module.exports = FastClick.attach;
+	module.exports.FastClick = FastClick;
+} else {
+	window.FastClick = FastClick;
+}
+
+});
+
+require.register("component~indexof@0.0.3", function (exports, module) {
+module.exports = function(arr, obj){
+  if (arr.indexOf) return arr.indexOf(obj);
+  for (var i = 0; i < arr.length; ++i) {
+    if (arr[i] === obj) return i;
+  }
+  return -1;
+};
+});
+
+require.register("component~classes@1.2.1", function (exports, module) {
+/**
+ * Module dependencies.
+ */
+
+var index = require('component~indexof@0.0.3');
+
+/**
+ * Whitespace regexp.
+ */
+
+var re = /\s+/;
+
+/**
+ * toString reference.
+ */
+
+var toString = Object.prototype.toString;
+
+/**
+ * Wrap `el` in a `ClassList`.
+ *
+ * @param {Element} el
+ * @return {ClassList}
+ * @api public
+ */
+
+module.exports = function(el){
+  return new ClassList(el);
+};
+
+/**
+ * Initialize a new ClassList for `el`.
+ *
+ * @param {Element} el
+ * @api private
+ */
+
+function ClassList(el) {
+  if (!el) throw new Error('A DOM element reference is required');
+  this.el = el;
+  this.list = el.classList;
+}
+
+/**
+ * Add class `name` if not already present.
+ *
+ * @param {String} name
+ * @return {ClassList}
+ * @api public
+ */
+
+ClassList.prototype.add = function(name){
+  // classList
+  if (this.list) {
+    this.list.add(name);
+    return this;
+  }
+
+  // fallback
+  var arr = this.array();
+  var i = index(arr, name);
+  if (!~i) arr.push(name);
+  this.el.className = arr.join(' ');
+  return this;
+};
+
+/**
+ * Remove class `name` when present, or
+ * pass a regular expression to remove
+ * any which match.
+ *
+ * @param {String|RegExp} name
+ * @return {ClassList}
+ * @api public
+ */
+
+ClassList.prototype.remove = function(name){
+  if ('[object RegExp]' == toString.call(name)) {
+    return this.removeMatching(name);
+  }
+
+  // classList
+  if (this.list) {
+    this.list.remove(name);
+    return this;
+  }
+
+  // fallback
+  var arr = this.array();
+  var i = index(arr, name);
+  if (~i) arr.splice(i, 1);
+  this.el.className = arr.join(' ');
+  return this;
+};
+
+/**
+ * Remove all classes matching `re`.
+ *
+ * @param {RegExp} re
+ * @return {ClassList}
+ * @api private
+ */
+
+ClassList.prototype.removeMatching = function(re){
+  var arr = this.array();
+  for (var i = 0; i < arr.length; i++) {
+    if (re.test(arr[i])) {
+      this.remove(arr[i]);
+    }
+  }
+  return this;
+};
+
+/**
+ * Toggle class `name`, can force state via `force`.
+ *
+ * For browsers that support classList, but do not support `force` yet,
+ * the mistake will be detected and corrected.
+ *
+ * @param {String} name
+ * @param {Boolean} force
+ * @return {ClassList}
+ * @api public
+ */
+
+ClassList.prototype.toggle = function(name, force){
+  // classList
+  if (this.list) {
+    if ("undefined" !== typeof force) {
+      if (force !== this.list.toggle(name, force)) {
+        this.list.toggle(name); // toggle again to correct
+      }
+    } else {
+      this.list.toggle(name);
+    }
+    return this;
+  }
+
+  // fallback
+  if ("undefined" !== typeof force) {
+    if (!force) {
+      this.remove(name);
+    } else {
+      this.add(name);
+    }
+  } else {
+    if (this.has(name)) {
+      this.remove(name);
+    } else {
+      this.add(name);
+    }
+  }
+
+  return this;
+};
+
+/**
+ * Return an array of classes.
+ *
+ * @return {Array}
+ * @api public
+ */
+
+ClassList.prototype.array = function(){
+  var str = this.el.className.replace(/^\s+|\s+$/g, '');
+  var arr = str.split(re);
+  if ('' === arr[0]) arr.shift();
+  return arr;
+};
+
+/**
+ * Check if class `name` is present.
+ *
+ * @param {String} name
+ * @return {ClassList}
+ * @api public
+ */
+
+ClassList.prototype.has =
+ClassList.prototype.contains = function(name){
+  return this.list
+    ? this.list.contains(name)
+    : !! ~index(this.array(), name);
+};
+
+});
+
+require.register("component~event@0.1.4", function (exports, module) {
+var bind = window.addEventListener ? 'addEventListener' : 'attachEvent',
+    unbind = window.removeEventListener ? 'removeEventListener' : 'detachEvent',
+    prefix = bind !== 'addEventListener' ? 'on' : '';
+
+/**
+ * Bind `el` event `type` to `fn`.
+ *
+ * @param {Element} el
+ * @param {String} type
+ * @param {Function} fn
+ * @param {Boolean} capture
+ * @return {Function}
+ * @api public
+ */
+
+exports.bind = function(el, type, fn, capture){
+  el[bind](prefix + type, fn, capture || false);
+  return fn;
+};
+
+/**
+ * Unbind `el` event `type`'s callback `fn`.
+ *
+ * @param {Element} el
+ * @param {String} type
+ * @param {Function} fn
+ * @param {Boolean} capture
+ * @return {Function}
+ * @api public
+ */
+
+exports.unbind = function(el, type, fn, capture){
+  el[unbind](prefix + type, fn, capture || false);
+  return fn;
+};
+});
+
+require.register("component~query@0.0.3", function (exports, module) {
+function one(selector, el) {
+  return el.querySelector(selector);
+}
+
+exports = module.exports = function(selector, el){
+  el = el || document;
+  return one(selector, el);
+};
+
+exports.all = function(selector, el){
+  el = el || document;
+  return el.querySelectorAll(selector);
+};
+
+exports.engine = function(obj){
+  if (!obj.one) throw new Error('.one callback required');
+  if (!obj.all) throw new Error('.all callback required');
+  one = obj.one;
+  exports.all = obj.all;
+  return exports;
+};
+
+});
+
+require.register("component~matches-selector@0.1.5", function (exports, module) {
+/**
+ * Module dependencies.
+ */
+
+var query = require('component~query@0.0.3');
+
+/**
+ * Element prototype.
+ */
+
+var proto = Element.prototype;
+
+/**
+ * Vendor function.
+ */
+
+var vendor = proto.matches
+  || proto.webkitMatchesSelector
+  || proto.mozMatchesSelector
+  || proto.msMatchesSelector
+  || proto.oMatchesSelector;
+
+/**
+ * Expose `match()`.
+ */
+
+module.exports = match;
+
+/**
+ * Match `el` to `selector`.
+ *
+ * @param {Element} el
+ * @param {String} selector
+ * @return {Boolean}
+ * @api public
+ */
+
+function match(el, selector) {
+  if (!el || el.nodeType !== 1) return false;
+  if (vendor) return vendor.call(el, selector);
+  var nodes = query.all(selector, el.parentNode);
+  for (var i = 0; i < nodes.length; ++i) {
+    if (nodes[i] == el) return true;
+  }
+  return false;
+}
+
+});
+
+require.register("component~closest@0.1.4", function (exports, module) {
+var matches = require('component~matches-selector@0.1.5')
+
+module.exports = function (element, selector, checkYoSelf, root) {
+  element = checkYoSelf ? {parentNode: element} : element
+
+  root = root || document
+
+  // Make sure `element !== document` and `element != null`
+  // otherwise we get an illegal invocation
+  while ((element = element.parentNode) && element !== document) {
+    if (matches(element, selector))
+      return element
+    // After `matches` on the edge case that
+    // the selector matches the root
+    // (when the root is not the document)
+    if (element === root)
+      return
+  }
+}
+
+});
+
+require.register("component~delegate@0.2.3", function (exports, module) {
+/**
+ * Module dependencies.
+ */
+
+var closest = require('component~closest@0.1.4')
+  , event = require('component~event@0.1.4');
+
+/**
+ * Delegate event `type` to `selector`
+ * and invoke `fn(e)`. A callback function
+ * is returned which may be passed to `.unbind()`.
+ *
+ * @param {Element} el
+ * @param {String} selector
+ * @param {String} type
+ * @param {Function} fn
+ * @param {Boolean} capture
+ * @return {Function}
+ * @api public
+ */
+
+exports.bind = function(el, selector, type, fn, capture){
+  return event.bind(el, type, function(e){
+    var target = e.target || e.srcElement;
+    e.delegateTarget = closest(target, selector, true, el);
+    if (e.delegateTarget) fn.call(el, e);
+  }, capture);
+};
+
+/**
+ * Unbind event `type`'s callback `fn`.
+ *
+ * @param {Element} el
+ * @param {String} type
+ * @param {Function} fn
+ * @param {Boolean} capture
+ * @api public
+ */
+
+exports.unbind = function(el, type, fn, capture){
+  event.unbind(el, type, fn, capture);
+};
+
+});
+
+require.register("component~events@1.0.9", function (exports, module) {
+
+/**
+ * Module dependencies.
+ */
+
+var events = require('component~event@0.1.4');
+var delegate = require('component~delegate@0.2.3');
+
+/**
+ * Expose `Events`.
+ */
+
+module.exports = Events;
+
+/**
+ * Initialize an `Events` with the given
+ * `el` object which events will be bound to,
+ * and the `obj` which will receive method calls.
+ *
+ * @param {Object} el
+ * @param {Object} obj
+ * @api public
+ */
+
+function Events(el, obj) {
+  if (!(this instanceof Events)) return new Events(el, obj);
+  if (!el) throw new Error('element required');
+  if (!obj) throw new Error('object required');
+  this.el = el;
+  this.obj = obj;
+  this._events = {};
+}
+
+/**
+ * Subscription helper.
+ */
+
+Events.prototype.sub = function(event, method, cb){
+  this._events[event] = this._events[event] || {};
+  this._events[event][method] = cb;
+};
+
+/**
+ * Bind to `event` with optional `method` name.
+ * When `method` is undefined it becomes `event`
+ * with the "on" prefix.
+ *
+ * Examples:
+ *
+ *  Direct event handling:
+ *
+ *    events.bind('click') // implies "onclick"
+ *    events.bind('click', 'remove')
+ *    events.bind('click', 'sort', 'asc')
+ *
+ *  Delegated event handling:
+ *
+ *    events.bind('click li > a')
+ *    events.bind('click li > a', 'remove')
+ *    events.bind('click a.sort-ascending', 'sort', 'asc')
+ *    events.bind('click a.sort-descending', 'sort', 'desc')
+ *
+ * @param {String} event
+ * @param {String|function} [method]
+ * @return {Function} callback
+ * @api public
+ */
+
+Events.prototype.bind = function(event, method){
+  var e = parse(event);
+  var el = this.el;
+  var obj = this.obj;
+  var name = e.name;
+  var method = method || 'on' + name;
+  var args = [].slice.call(arguments, 2);
+
+  // callback
+  function cb(){
+    var a = [].slice.call(arguments).concat(args);
+    obj[method].apply(obj, a);
+  }
+
+  // bind
+  if (e.selector) {
+    cb = delegate.bind(el, e.selector, name, cb);
+  } else {
+    events.bind(el, name, cb);
+  }
+
+  // subscription for unbinding
+  this.sub(name, method, cb);
+
+  return cb;
+};
+
+/**
+ * Unbind a single binding, all bindings for `event`,
+ * or all bindings within the manager.
+ *
+ * Examples:
+ *
+ *  Unbind direct handlers:
+ *
+ *     events.unbind('click', 'remove')
+ *     events.unbind('click')
+ *     events.unbind()
+ *
+ * Unbind delegate handlers:
+ *
+ *     events.unbind('click', 'remove')
+ *     events.unbind('click')
+ *     events.unbind()
+ *
+ * @param {String|Function} [event]
+ * @param {String|Function} [method]
+ * @api public
+ */
+
+Events.prototype.unbind = function(event, method){
+  if (0 == arguments.length) return this.unbindAll();
+  if (1 == arguments.length) return this.unbindAllOf(event);
+
+  // no bindings for this event
+  var bindings = this._events[event];
+  if (!bindings) return;
+
+  // no bindings for this method
+  var cb = bindings[method];
+  if (!cb) return;
+
+  events.unbind(this.el, event, cb);
+};
+
+/**
+ * Unbind all events.
+ *
+ * @api private
+ */
+
+Events.prototype.unbindAll = function(){
+  for (var event in this._events) {
+    this.unbindAllOf(event);
+  }
+};
+
+/**
+ * Unbind all events for `event`.
+ *
+ * @param {String} event
+ * @api private
+ */
+
+Events.prototype.unbindAllOf = function(event){
+  var bindings = this._events[event];
+  if (!bindings) return;
+
+  for (var method in bindings) {
+    this.unbind(event, method);
+  }
+};
+
+/**
+ * Parse `event`.
+ *
+ * @param {String} event
+ * @return {Object}
+ * @api private
+ */
+
+function parse(event) {
+  var parts = event.split(/ +/);
+  return {
+    name: parts.shift(),
+    selector: parts.join(' ')
+  }
+}
+
+});
+
+require.register("switchery", function (exports, module) {
+/**
+ * Switchery 0.8.1
+ * http://abpetkov.github.io/switchery/
+ *
+ * Authored by Alexander Petkov
+ * https://github.com/abpetkov
+ *
+ * Copyright 2013-2015, Alexander Petkov
+ * License: The MIT License (MIT)
+ * http://opensource.org/licenses/MIT
+ *
+ */
+
+/**
+ * External dependencies.
+ */
+
+var transitionize = require('abpetkov~transitionize@0.0.3')
+  , fastclick = require('ftlabs~fastclick@v0.6.11')
+  , classes = require('component~classes@1.2.1')
+  , events = require('component~events@1.0.9');
+
+/**
+ * Expose `Switchery`.
+ */
+
+module.exports = Switchery;
+
+/**
+ * Set Switchery default values.
+ *
+ * @api public
+ */
+
+var defaults = {
+    color             : '#64bd63'
+  , secondaryColor    : '#dfdfdf'
+  , jackColor         : '#fff'
+  , jackSecondaryColor: null
+  , className         : 'switchery'
+  , disabled          : false
+  , disabledOpacity   : 0.5
+  , speed             : '0.4s'
+  , size              : 'default'
+};
+
+/**
+ * Create Switchery object.
+ *
+ * @param {Object} element
+ * @param {Object} options
+ * @api public
+ */
+
+function Switchery(element, options) {
+  if (!(this instanceof Switchery)) return new Switchery(element, options);
+
+  this.element = element;
+  this.options = options || {};
+
+  for (var i in defaults) {
+    if (this.options[i] == null) {
+      this.options[i] = defaults[i];
+    }
+  }
+
+  if (this.element != null && this.element.type == 'checkbox') this.init();
+  if (this.isDisabled() === true) this.disable();
+}
+
+/**
+ * Hide the target element.
+ *
+ * @api private
+ */
+
+Switchery.prototype.hide = function() {
+  this.element.style.display = 'none';
+};
+
+/**
+ * Show custom switch after the target element.
+ *
+ * @api private
+ */
+
+Switchery.prototype.show = function() {
+  var switcher = this.create();
+  this.insertAfter(this.element, switcher);
+};
+
+/**
+ * Create custom switch.
+ *
+ * @returns {Object} this.switcher
+ * @api private
+ */
+
+Switchery.prototype.create = function() {
+  this.switcher = document.createElement('span');
+  this.jack = document.createElement('small');
+  this.switcher.appendChild(this.jack);
+  this.switcher.className = this.options.className;
+  this.events = events(this.switcher, this);
+
+  return this.switcher;
+};
+
+/**
+ * Insert after element after another element.
+ *
+ * @param {Object} reference
+ * @param {Object} target
+ * @api private
+ */
+
+Switchery.prototype.insertAfter = function(reference, target) {
+  reference.parentNode.insertBefore(target, reference.nextSibling);
+};
+
+/**
+ * Set switch jack proper position.
+ *
+ * @param {Boolean} clicked - we need this in order to uncheck the input when the switch is clicked
+ * @api private
+ */
+
+Switchery.prototype.setPosition = function (clicked) {
+  var checked = this.isChecked()
+    , switcher = this.switcher
+    , jack = this.jack;
+
+  if (clicked && checked) checked = false;
+  else if (clicked && !checked) checked = true;
+
+  if (checked === true) {
+    this.element.checked = true;
+
+    if (window.getComputedStyle) jack.style.left = parseInt(window.getComputedStyle(switcher).width) - parseInt(window.getComputedStyle(jack).width) + 'px';
+    else jack.style.left = parseInt(switcher.currentStyle['width']) - parseInt(jack.currentStyle['width']) + 'px';
+
+    if (this.options.color) this.colorize();
+    this.setSpeed();
+  } else {
+    jack.style.left = 0;
+    this.element.checked = false;
+    this.switcher.style.boxShadow = 'inset 0 0 0 0 ' + this.options.secondaryColor;
+    this.switcher.style.borderColor = this.options.secondaryColor;
+    this.switcher.style.backgroundColor = (this.options.secondaryColor !== defaults.secondaryColor) ? this.options.secondaryColor : '#fff';
+    this.jack.style.backgroundColor = (this.options.jackSecondaryColor !== this.options.jackColor) ? this.options.jackSecondaryColor : this.options.jackColor;
+    this.setSpeed();
+  }
+};
+
+/**
+ * Set speed.
+ *
+ * @api private
+ */
+
+Switchery.prototype.setSpeed = function() {
+  var switcherProp = {}
+    , jackProp = {
+        'background-color': this.options.speed
+      , 'left': this.options.speed.replace(/[a-z]/, '') / 2 + 's'
+    };
+
+  if (this.isChecked()) {
+    switcherProp = {
+        'border': this.options.speed
+      , 'box-shadow': this.options.speed
+      , 'background-color': this.options.speed.replace(/[a-z]/, '') * 3 + 's'
+    };
+  } else {
+    switcherProp = {
+        'border': this.options.speed
+      , 'box-shadow': this.options.speed
+    };
+  }
+
+  transitionize(this.switcher, switcherProp);
+  transitionize(this.jack, jackProp);
+};
+
+/**
+ * Set switch size.
+ *
+ * @api private
+ */
+
+Switchery.prototype.setSize = function() {
+  var small = 'switchery-small'
+    , normal = 'switchery-default'
+    , large = 'switchery-large';
+
+  switch (this.options.size) {
+    case 'small':
+      classes(this.switcher).add(small)
+      break;
+    case 'large':
+      classes(this.switcher).add(large)
+      break;
+    default:
+      classes(this.switcher).add(normal)
+      break;
+  }
+};
+
+/**
+ * Set switch color.
+ *
+ * @api private
+ */
+
+Switchery.prototype.colorize = function() {
+  var switcherHeight = this.switcher.offsetHeight / 2;
+
+  this.switcher.style.backgroundColor = this.options.color;
+  this.switcher.style.borderColor = this.options.color;
+  this.switcher.style.boxShadow = 'inset 0 0 0 ' + switcherHeight + 'px ' + this.options.color;
+  this.jack.style.backgroundColor = this.options.jackColor;
+};
+
+/**
+ * Handle the onchange event.
+ *
+ * @param {Boolean} state
+ * @api private
+ */
+
+Switchery.prototype.handleOnchange = function(state) {
+  if (document.dispatchEvent) {
+    var event = document.createEvent('HTMLEvents');
+    event.initEvent('change', true, true);
+    this.element.dispatchEvent(event);
+  } else {
+    this.element.fireEvent('onchange');
+  }
+};
+
+/**
+ * Handle the native input element state change.
+ * A `change` event must be fired in order to detect the change.
+ *
+ * @api private
+ */
+
+Switchery.prototype.handleChange = function() {
+  var self = this
+    , el = this.element;
+
+  if (el.addEventListener) {
+    el.addEventListener('change', function() {
+      self.setPosition();
+    });
+  } else {
+    el.attachEvent('onchange', function() {
+      self.setPosition();
+    });
+  }
+};
+
+/**
+ * Handle the switch click event.
+ *
+ * @api private
+ */
+
+Switchery.prototype.handleClick = function() {
+  var switcher = this.switcher;
+
+  fastclick(switcher);
+  this.events.bind('click', 'bindClick');
+};
+
+/**
+ * Attach all methods that need to happen on switcher click.
+ *
+ * @api private
+ */
+
+Switchery.prototype.bindClick = function() {
+  var parent = this.element.parentNode.tagName.toLowerCase()
+    , labelParent = (parent === 'label') ? false : true;
+
+  this.setPosition(labelParent);
+  this.handleOnchange(this.element.checked);
+};
+
+/**
+ * Mark an individual switch as already handled.
+ *
+ * @api private
+ */
+
+Switchery.prototype.markAsSwitched = function() {
+  this.element.setAttribute('data-switchery', true);
+};
+
+/**
+ * Check if an individual switch is already handled.
+ *
+ * @api private
+ */
+
+Switchery.prototype.markedAsSwitched = function() {
+  return this.element.getAttribute('data-switchery');
+};
+
+/**
+ * Initialize Switchery.
+ *
+ * @api private
+ */
+
+Switchery.prototype.init = function() {
+  this.hide();
+  this.show();
+  this.setSize();
+  this.setPosition();
+  this.markAsSwitched();
+  this.handleChange();
+  this.handleClick();
+};
+
+/**
+ * See if input is checked.
+ *
+ * @returns {Boolean}
+ * @api public
+ */
+
+Switchery.prototype.isChecked = function() {
+  return this.element.checked;
+};
+
+/**
+ * See if switcher should be disabled.
+ *
+ * @returns {Boolean}
+ * @api public
+ */
+
+Switchery.prototype.isDisabled = function() {
+  return this.options.disabled || this.element.disabled || this.element.readOnly;
+};
+
+/**
+ * Destroy all event handlers attached to the switch.
+ *
+ * @api public
+ */
+
+Switchery.prototype.destroy = function() {
+  this.events.unbind();
+};
+
+/**
+ * Enable disabled switch element.
+ *
+ * @api public
+ */
+
+Switchery.prototype.enable = function() {
+  if (this.options.disabled) this.options.disabled = false;
+  if (this.element.disabled) this.element.disabled = false;
+  if (this.element.readOnly) this.element.readOnly = false;
+  this.switcher.style.opacity = 1;
+  this.events.bind('click', 'bindClick');
+};
+
+/**
+ * Disable switch element.
+ *
+ * @api public
+ */
+
+Switchery.prototype.disable = function() {
+  if (!this.options.disabled) this.options.disabled = true;
+  if (!this.element.disabled) this.element.disabled = true;
+  if (!this.element.readOnly) this.element.readOnly = true;
+  this.switcher.style.opacity = this.options.disabledOpacity;
+  this.destroy();
+};
+
+});
+
+if (typeof exports == "object") {
+  module.exports = require("switchery");
+} else if (typeof define == "function" && define.amd) {
+  define("Switchery", [], function(){ return require("switchery"); });
+} else {
+  (this || window)["Switchery"] = require("switchery");
+}
+})()
+
+
+/* **********************************************
+     Begin prism-core.js
+********************************************** */
+
+var _self = (typeof window !== 'undefined')
+	? window   // if in browser
+	: (
+		(typeof WorkerGlobalScope !== 'undefined' && self instanceof WorkerGlobalScope)
+		? self // if in worker
+		: {}   // if in node js
+	);
+
+/**
+ * Prism: Lightweight, robust, elegant syntax highlighting
+ * MIT license http://www.opensource.org/licenses/mit-license.php/
+ * @author Lea Verou http://lea.verou.me
+ */
+
+var Prism = (function(){
+
+// Private helper vars
+var lang = /\blang(?:uage)?-(?!\*)(\w+)\b/i;
+
+var _ = _self.Prism = {
+	util: {
+		encode: function (tokens) {
+			if (tokens instanceof Token) {
+				return new Token(tokens.type, _.util.encode(tokens.content), tokens.alias);
+			} else if (_.util.type(tokens) === 'Array') {
+				return tokens.map(_.util.encode);
+			} else {
+				return tokens.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/\u00a0/g, ' ');
+			}
+		},
+
+		type: function (o) {
+			return Object.prototype.toString.call(o).match(/\[object (\w+)\]/)[1];
+		},
+
+		// Deep clone a language definition (e.g. to extend it)
+		clone: function (o) {
+			var type = _.util.type(o);
+
+			switch (type) {
+				case 'Object':
+					var clone = {};
+
+					for (var key in o) {
+						if (o.hasOwnProperty(key)) {
+							clone[key] = _.util.clone(o[key]);
+						}
+					}
+
+					return clone;
+
+				case 'Array':
+					// Check for existence for IE8
+					return o.map && o.map(function(v) { return _.util.clone(v); });
+			}
+
+			return o;
+		}
+	},
+
+	languages: {
+		extend: function (id, redef) {
+			var lang = _.util.clone(_.languages[id]);
+
+			for (var key in redef) {
+				lang[key] = redef[key];
+			}
+
+			return lang;
+		},
+
+		/**
+		 * Insert a token before another token in a language literal
+		 * As this needs to recreate the object (we cannot actually insert before keys in object literals),
+		 * we cannot just provide an object, we need anobject and a key.
+		 * @param inside The key (or language id) of the parent
+		 * @param before The key to insert before. If not provided, the function appends instead.
+		 * @param insert Object with the key/value pairs to insert
+		 * @param root The object that contains `inside`. If equal to Prism.languages, it can be omitted.
+		 */
+		insertBefore: function (inside, before, insert, root) {
+			root = root || _.languages;
+			var grammar = root[inside];
+			
+			if (arguments.length == 2) {
+				insert = arguments[1];
+				
+				for (var newToken in insert) {
+					if (insert.hasOwnProperty(newToken)) {
+						grammar[newToken] = insert[newToken];
+					}
+				}
+				
+				return grammar;
+			}
+			
+			var ret = {};
+
+			for (var token in grammar) {
+
+				if (grammar.hasOwnProperty(token)) {
+
+					if (token == before) {
+
+						for (var newToken in insert) {
+
+							if (insert.hasOwnProperty(newToken)) {
+								ret[newToken] = insert[newToken];
+							}
+						}
+					}
+
+					ret[token] = grammar[token];
+				}
+			}
+			
+			// Update references in other language definitions
+			_.languages.DFS(_.languages, function(key, value) {
+				if (value === root[inside] && key != inside) {
+					this[key] = ret;
+				}
+			});
+
+			return root[inside] = ret;
+		},
+
+		// Traverse a language definition with Depth First Search
+		DFS: function(o, callback, type) {
+			for (var i in o) {
+				if (o.hasOwnProperty(i)) {
+					callback.call(o, i, o[i], type || i);
+
+					if (_.util.type(o[i]) === 'Object') {
+						_.languages.DFS(o[i], callback);
+					}
+					else if (_.util.type(o[i]) === 'Array') {
+						_.languages.DFS(o[i], callback, i);
+					}
+				}
+			}
+		}
+	},
+	plugins: {},
+	
+	highlightAll: function(async, callback) {
+		var elements = document.querySelectorAll('code[class*="language-"], [class*="language-"] code, code[class*="lang-"], [class*="lang-"] code');
+
+		for (var i=0, element; element = elements[i++];) {
+			_.highlightElement(element, async === true, callback);
+		}
+	},
+
+	highlightElement: function(element, async, callback) {
+		// Find language
+		var language, grammar, parent = element;
+
+		while (parent && !lang.test(parent.className)) {
+			parent = parent.parentNode;
+		}
+
+		if (parent) {
+			language = (parent.className.match(lang) || [,''])[1];
+			grammar = _.languages[language];
+		}
+
+		// Set language on the element, if not present
+		element.className = element.className.replace(lang, '').replace(/\s+/g, ' ') + ' language-' + language;
+
+		// Set language on the parent, for styling
+		parent = element.parentNode;
+
+		if (/pre/i.test(parent.nodeName)) {
+			parent.className = parent.className.replace(lang, '').replace(/\s+/g, ' ') + ' language-' + language;
+		}
+
+		var code = element.textContent;
+
+		var env = {
+			element: element,
+			language: language,
+			grammar: grammar,
+			code: code
+		};
+
+		if (!code || !grammar) {
+			_.hooks.run('complete', env);
+			return;
+		}
+
+		_.hooks.run('before-highlight', env);
+
+		if (async && _self.Worker) {
+			var worker = new Worker(_.filename);
+
+			worker.onmessage = function(evt) {
+				env.highlightedCode = evt.data;
+
+				_.hooks.run('before-insert', env);
+
+				env.element.innerHTML = env.highlightedCode;
+
+				callback && callback.call(env.element);
+				_.hooks.run('after-highlight', env);
+				_.hooks.run('complete', env);
+			};
+
+			worker.postMessage(JSON.stringify({
+				language: env.language,
+				code: env.code,
+				immediateClose: true
+			}));
+		}
+		else {
+			env.highlightedCode = _.highlight(env.code, env.grammar, env.language);
+
+			_.hooks.run('before-insert', env);
+
+			env.element.innerHTML = env.highlightedCode;
+
+			callback && callback.call(element);
+
+			_.hooks.run('after-highlight', env);
+			_.hooks.run('complete', env);
+		}
+	},
+
+	highlight: function (text, grammar, language) {
+		var tokens = _.tokenize(text, grammar);
+		return Token.stringify(_.util.encode(tokens), language);
+	},
+
+	tokenize: function(text, grammar, language) {
+		var Token = _.Token;
+
+		var strarr = [text];
+
+		var rest = grammar.rest;
+
+		if (rest) {
+			for (var token in rest) {
+				grammar[token] = rest[token];
+			}
+
+			delete grammar.rest;
+		}
+
+		tokenloop: for (var token in grammar) {
+			if(!grammar.hasOwnProperty(token) || !grammar[token]) {
+				continue;
+			}
+
+			var patterns = grammar[token];
+			patterns = (_.util.type(patterns) === "Array") ? patterns : [patterns];
+
+			for (var j = 0; j < patterns.length; ++j) {
+				var pattern = patterns[j],
+					inside = pattern.inside,
+					lookbehind = !!pattern.lookbehind,
+					lookbehindLength = 0,
+					alias = pattern.alias;
+
+				pattern = pattern.pattern || pattern;
+
+				for (var i=0; i<strarr.length; i++) { // Don’t cache length as it changes during the loop
+
+					var str = strarr[i];
+
+					if (strarr.length > text.length) {
+						// Something went terribly wrong, ABORT, ABORT!
+						break tokenloop;
+					}
+
+					if (str instanceof Token) {
+						continue;
+					}
+
+					pattern.lastIndex = 0;
+
+					var match = pattern.exec(str);
+
+					if (match) {
+						if(lookbehind) {
+							lookbehindLength = match[1].length;
+						}
+
+						var from = match.index - 1 + lookbehindLength,
+							match = match[0].slice(lookbehindLength),
+							len = match.length,
+							to = from + len,
+							before = str.slice(0, from + 1),
+							after = str.slice(to + 1);
+
+						var args = [i, 1];
+
+						if (before) {
+							args.push(before);
+						}
+
+						var wrapped = new Token(token, inside? _.tokenize(match, inside) : match, alias);
+
+						args.push(wrapped);
+
+						if (after) {
+							args.push(after);
+						}
+
+						Array.prototype.splice.apply(strarr, args);
+					}
+				}
+			}
+		}
+
+		return strarr;
+	},
+
+	hooks: {
+		all: {},
+
+		add: function (name, callback) {
+			var hooks = _.hooks.all;
+
+			hooks[name] = hooks[name] || [];
+
+			hooks[name].push(callback);
+		},
+
+		run: function (name, env) {
+			var callbacks = _.hooks.all[name];
+
+			if (!callbacks || !callbacks.length) {
+				return;
+			}
+
+			for (var i=0, callback; callback = callbacks[i++];) {
+				callback(env);
+			}
+		}
+	}
+};
+
+var Token = _.Token = function(type, content, alias) {
+	this.type = type;
+	this.content = content;
+	this.alias = alias;
+};
+
+Token.stringify = function(o, language, parent) {
+	if (typeof o == 'string') {
+		return o;
+	}
+
+	if (_.util.type(o) === 'Array') {
+		return o.map(function(element) {
+			return Token.stringify(element, language, o);
+		}).join('');
+	}
+
+	var env = {
+		type: o.type,
+		content: Token.stringify(o.content, language, parent),
+		tag: 'span',
+		classes: ['token', o.type],
+		attributes: {},
+		language: language,
+		parent: parent
+	};
+
+	if (env.type == 'comment') {
+		env.attributes['spellcheck'] = 'true';
+	}
+
+	if (o.alias) {
+		var aliases = _.util.type(o.alias) === 'Array' ? o.alias : [o.alias];
+		Array.prototype.push.apply(env.classes, aliases);
+	}
+
+	_.hooks.run('wrap', env);
+
+	var attributes = '';
+
+	for (var name in env.attributes) {
+		attributes += (attributes ? ' ' : '') + name + '="' + (env.attributes[name] || '') + '"';
+	}
+
+	return '<' + env.tag + ' class="' + env.classes.join(' ') + '" ' + attributes + '>' + env.content + '</' + env.tag + '>';
+
+};
+
+if (!_self.document) {
+	if (!_self.addEventListener) {
+		// in Node.js
+		return _self.Prism;
+	}
+ 	// In worker
+	_self.addEventListener('message', function(evt) {
+		var message = JSON.parse(evt.data),
+		    lang = message.language,
+		    code = message.code,
+		    immediateClose = message.immediateClose;
+
+		_self.postMessage(_.highlight(code, _.languages[lang], lang));
+		if (immediateClose) {
+			_self.close();
+		}
+	}, false);
+
+	return _self.Prism;
+}
+
+// Get current script and highlight
+var script = document.getElementsByTagName('script');
+
+script = script[script.length - 1];
+
+if (script) {
+	_.filename = script.src;
+
+	if (document.addEventListener && !script.hasAttribute('data-manual')) {
+		document.addEventListener('DOMContentLoaded', _.highlightAll);
+	}
+}
+
+return _self.Prism;
+
+})();
+
+if (typeof module !== 'undefined' && module.exports) {
+	module.exports = Prism;
+}
+
+// hack for components to work correctly in node.js
+if (typeof global !== 'undefined') {
+	global.Prism = Prism;
+}
+
+
+/* **********************************************
+     Begin prism-markup.js
+********************************************** */
+
+Prism.languages.markup = {
+	'comment': /<!--[\w\W]*?-->/,
+	'prolog': /<\?[\w\W]+?\?>/,
+	'doctype': /<!DOCTYPE[\w\W]+?>/,
+	'cdata': /<!\[CDATA\[[\w\W]*?]]>/i,
+	'tag': {
+		pattern: /<\/?(?!\d)[^\s>\/=.$<]+(?:\s+[^\s>\/=]+(?:=(?:("|')(?:\\\1|\\?(?!\1)[\w\W])*\1|[^\s'">=]+))?)*\s*\/?>/i,
+		inside: {
+			'tag': {
+				pattern: /^<\/?[^\s>\/]+/i,
+				inside: {
+					'punctuation': /^<\/?/,
+					'namespace': /^[^\s>\/:]+:/
+				}
+			},
+			'attr-value': {
+				pattern: /=(?:('|")[\w\W]*?(\1)|[^\s>]+)/i,
+				inside: {
+					'punctuation': /[=>"']/
+				}
+			},
+			'punctuation': /\/?>/,
+			'attr-name': {
+				pattern: /[^\s>\/]+/,
+				inside: {
+					'namespace': /^[^\s>\/:]+:/
+				}
+			}
+
+		}
+	},
+	'entity': /&#?[\da-z]{1,8};/i
+};
+
+// Plugin to make entity title show the real entity, idea by Roman Komarov
+Prism.hooks.add('wrap', function(env) {
+
+	if (env.type === 'entity') {
+		env.attributes['title'] = env.content.replace(/&amp;/, '&');
+	}
+});
+
+Prism.languages.xml = Prism.languages.markup;
+Prism.languages.html = Prism.languages.markup;
+Prism.languages.mathml = Prism.languages.markup;
+Prism.languages.svg = Prism.languages.markup;
+
+
+/* **********************************************
+     Begin prism-css.js
+********************************************** */
+
+Prism.languages.css = {
+	'comment': /\/\*[\w\W]*?\*\//,
+	'atrule': {
+		pattern: /@[\w-]+?.*?(;|(?=\s*\{))/i,
+		inside: {
+			'rule': /@[\w-]+/
+			// See rest below
+		}
+	},
+	'url': /url\((?:(["'])(\\(?:\r\n|[\w\W])|(?!\1)[^\\\r\n])*\1|.*?)\)/i,
+	'selector': /[^\{\}\s][^\{\};]*?(?=\s*\{)/,
+	'string': /("|')(\\(?:\r\n|[\w\W])|(?!\1)[^\\\r\n])*\1/,
+	'property': /(\b|\B)[\w-]+(?=\s*:)/i,
+	'important': /\B!important\b/i,
+	'function': /[-a-z0-9]+(?=\()/i,
+	'punctuation': /[(){};:]/
+};
+
+Prism.languages.css['atrule'].inside.rest = Prism.util.clone(Prism.languages.css);
+
+if (Prism.languages.markup) {
+	Prism.languages.insertBefore('markup', 'tag', {
+		'style': {
+			pattern: /(<style[\w\W]*?>)[\w\W]*?(?=<\/style>)/i,
+			lookbehind: true,
+			inside: Prism.languages.css,
+			alias: 'language-css'
+		}
+	});
+	
+	Prism.languages.insertBefore('inside', 'attr-value', {
+		'style-attr': {
+			pattern: /\s*style=("|').*?\1/i,
+			inside: {
+				'attr-name': {
+					pattern: /^\s*style/i,
+					inside: Prism.languages.markup.tag.inside
+				},
+				'punctuation': /^\s*=\s*['"]|['"]\s*$/,
+				'attr-value': {
+					pattern: /.+/i,
+					inside: Prism.languages.css
+				}
+			},
+			alias: 'language-css'
+		}
+	}, Prism.languages.markup.tag);
+}
+
+/* **********************************************
+     Begin prism-clike.js
+********************************************** */
+
+Prism.languages.clike = {
+	'comment': [
+		{
+			pattern: /(^|[^\\])\/\*[\w\W]*?\*\//,
+			lookbehind: true
+		},
+		{
+			pattern: /(^|[^\\:])\/\/.*/,
+			lookbehind: true
+		}
+	],
+	'string': /(["'])(\\(?:\r\n|[\s\S])|(?!\1)[^\\\r\n])*\1/,
+	'class-name': {
+		pattern: /((?:\b(?:class|interface|extends|implements|trait|instanceof|new)\s+)|(?:catch\s+\())[a-z0-9_\.\\]+/i,
+		lookbehind: true,
+		inside: {
+			punctuation: /(\.|\\)/
+		}
+	},
+	'keyword': /\b(if|else|while|do|for|return|in|instanceof|function|new|try|throw|catch|finally|null|break|continue)\b/,
+	'boolean': /\b(true|false)\b/,
+	'function': /[a-z0-9_]+(?=\()/i,
+	'number': /\b-?(?:0x[\da-f]+|\d*\.?\d+(?:e[+-]?\d+)?)\b/i,
+	'operator': /--?|\+\+?|!=?=?|<=?|>=?|==?=?|&&?|\|\|?|\?|\*|\/|~|\^|%/,
+	'punctuation': /[{}[\];(),.:]/
+};
+
+
+/* **********************************************
+     Begin prism-javascript.js
+********************************************** */
+
+Prism.languages.javascript = Prism.languages.extend('clike', {
+	'keyword': /\b(as|async|await|break|case|catch|class|const|continue|debugger|default|delete|do|else|enum|export|extends|finally|for|from|function|get|if|implements|import|in|instanceof|interface|let|new|null|of|package|private|protected|public|return|set|static|super|switch|this|throw|try|typeof|var|void|while|with|yield)\b/,
+	'number': /\b-?(0x[\dA-Fa-f]+|0b[01]+|0o[0-7]+|\d*\.?\d+([Ee][+-]?\d+)?|NaN|Infinity)\b/,
+	// Allow for all non-ASCII characters (See http://stackoverflow.com/a/2008444)
+	'function': /[_$a-zA-Z\xA0-\uFFFF][_$a-zA-Z0-9\xA0-\uFFFF]*(?=\()/i
+});
+
+Prism.languages.insertBefore('javascript', 'keyword', {
+	'regex': {
+		pattern: /(^|[^/])\/(?!\/)(\[.+?]|\\.|[^/\\\r\n])+\/[gimyu]{0,5}(?=\s*($|[\r\n,.;})]))/,
+		lookbehind: true
+	}
+});
+
+Prism.languages.insertBefore('javascript', 'class-name', {
+	'template-string': {
+		pattern: /`(?:\\`|\\?[^`])*`/,
+		inside: {
+			'interpolation': {
+				pattern: /\$\{[^}]+\}/,
+				inside: {
+					'interpolation-punctuation': {
+						pattern: /^\$\{|\}$/,
+						alias: 'punctuation'
+					},
+					rest: Prism.languages.javascript
+				}
+			},
+			'string': /[\s\S]+/
+		}
+	}
+});
+
+if (Prism.languages.markup) {
+	Prism.languages.insertBefore('markup', 'tag', {
+		'script': {
+			pattern: /(<script[\w\W]*?>)[\w\W]*?(?=<\/script>)/i,
+			lookbehind: true,
+			inside: Prism.languages.javascript,
+			alias: 'language-javascript'
+		}
+	});
+}
+
+Prism.languages.js = Prism.languages.javascript;
+
+/* **********************************************
+     Begin prism-file-highlight.js
+********************************************** */
+
+(function () {
+	if (typeof self === 'undefined' || !self.Prism || !self.document || !document.querySelector) {
+		return;
+	}
+
+	self.Prism.fileHighlight = function() {
+
+		var Extensions = {
+			'js': 'javascript',
+			'html': 'markup',
+			'svg': 'markup',
+			'xml': 'markup',
+			'py': 'python',
+			'rb': 'ruby',
+			'ps1': 'powershell',
+			'psm1': 'powershell'
+		};
+
+		if(Array.prototype.forEach) { // Check to prevent error in IE8
+			Array.prototype.slice.call(document.querySelectorAll('pre[data-src]')).forEach(function (pre) {
+				var src = pre.getAttribute('data-src');
+
+				var language, parent = pre;
+				var lang = /\blang(?:uage)?-(?!\*)(\w+)\b/i;
+				while (parent && !lang.test(parent.className)) {
+					parent = parent.parentNode;
+				}
+
+				if (parent) {
+					language = (pre.className.match(lang) || [, ''])[1];
+				}
+
+				if (!language) {
+					var extension = (src.match(/\.(\w+)$/) || [, ''])[1];
+					language = Extensions[extension] || extension;
+				}
+
+				var code = document.createElement('code');
+				code.className = 'language-' + language;
+
+				pre.textContent = '';
+
+				code.textContent = 'Loading…';
+
+				pre.appendChild(code);
+
+				var xhr = new XMLHttpRequest();
+
+				xhr.open('GET', src, true);
+
+				xhr.onreadystatechange = function () {
+					if (xhr.readyState == 4) {
+
+						if (xhr.status < 400 && xhr.responseText) {
+							code.textContent = xhr.responseText;
+
+							Prism.highlightElement(code);
+						}
+						else if (xhr.status >= 400) {
+							code.textContent = '✖ Error ' + xhr.status + ' while fetching file: ' + xhr.statusText;
+						}
+						else {
+							code.textContent = '✖ Error: File does not exist or is empty';
+						}
+					}
+				};
+
+				xhr.send(null);
+			});
+		}
+
+	};
+
+	self.Prism.fileHighlight();
+
+})();
+
+/**
+ * Original by Aaron Harun: http://aahacreative.com/2012/07/31/php-syntax-highlighting-prism/
+ * Modified by Miles Johnson: http://milesj.me
+ *
+ * Supports the following:
+ * 		- Extends clike syntax
+ * 		- Support for PHP 5.3+ (namespaces, traits, generators, etc)
+ * 		- Smarter constant and function matching
+ *
+ * Adds the following new token classes:
+ * 		constant, delimiter, variable, function, package
+ */
+
+Prism.languages.php = Prism.languages.extend('clike', {
+	'keyword': /\b(and|or|xor|array|as|break|case|cfunction|class|const|continue|declare|default|die|do|else|elseif|enddeclare|endfor|endforeach|endif|endswitch|endwhile|extends|for|foreach|function|include|include_once|global|if|new|return|static|switch|use|require|require_once|var|while|abstract|interface|public|implements|private|protected|parent|throw|null|echo|print|trait|namespace|final|yield|goto|instanceof|finally|try|catch)\b/i,
+	'constant': /\b[A-Z0-9_]{2,}\b/,
+	'comment': {
+		pattern: /(^|[^\\])(?:\/\*[\w\W]*?\*\/|\/\/.*)/,
+		lookbehind: true
+	}
+});
+
+// Shell-like comments are matched after strings, because they are less
+// common than strings containing hashes...
+Prism.languages.insertBefore('php', 'class-name', {
+	'shell-comment': {
+		pattern: /(^|[^\\])#.*/,
+		lookbehind: true,
+		alias: 'comment'
+	}
+});
+
+Prism.languages.insertBefore('php', 'keyword', {
+	'delimiter': /\?>|<\?(?:php)?/i,
+	'variable': /\$\w+\b/i,
+	'package': {
+		pattern: /(\\|namespace\s+|use\s+)[\w\\]+/,
+		lookbehind: true,
+		inside: {
+			punctuation: /\\/
+		}
+	}
+});
+
+// Must be defined after the function pattern
+Prism.languages.insertBefore('php', 'operator', {
+	'property': {
+		pattern: /(->)[\w]+/,
+		lookbehind: true
+	}
+});
+
+// Add HTML support of the markup language exists
+if (Prism.languages.markup) {
+
+	// Tokenize all inline PHP blocks that are wrapped in <?php ?>
+	// This allows for easy PHP + markup highlighting
+	Prism.hooks.add('before-highlight', function(env) {
+		if (env.language !== 'php') {
+			return;
+		}
+
+		env.tokenStack = [];
+
+		env.backupCode = env.code;
+		env.code = env.code.replace(/(?:<\?php|<\?)[\w\W]*?(?:\?>)/ig, function(match) {
+			env.tokenStack.push(match);
+
+			return '{{{PHP' + env.tokenStack.length + '}}}';
+		});
+	});
+
+	// Restore env.code for other plugins (e.g. line-numbers)
+	Prism.hooks.add('before-insert', function(env) {
+		if (env.language === 'php') {
+			env.code = env.backupCode;
+			delete env.backupCode;
+		}
+	});
+
+	// Re-insert the tokens after highlighting
+	Prism.hooks.add('after-highlight', function(env) {
+		if (env.language !== 'php') {
+			return;
+		}
+
+		for (var i = 0, t; t = env.tokenStack[i]; i++) {
+			// The replace prevents $$, $&, $`, $', $n, $nn from being interpreted as special patterns
+			env.highlightedCode = env.highlightedCode.replace('{{{PHP' + (i + 1) + '}}}', Prism.highlight(t, env.grammar, 'php').replace(/\$/g, '$$$$'));
+		}
+
+		env.element.innerHTML = env.highlightedCode;
+	});
+
+	// Wrap tokens in classes that are missing them
+	Prism.hooks.add('wrap', function(env) {
+		if (env.language === 'php' && env.type === 'markup') {
+			env.content = env.content.replace(/(\{\{\{PHP[0-9]+\}\}\})/g, "<span class=\"token php\">$1</span>");
+		}
+	});
+
+	// Add the rules before all others
+	Prism.languages.insertBefore('php', 'comment', {
+		'markup': {
+			pattern: /<[^?]\/?(.*?)>/,
+			inside: Prism.languages.markup
+		},
+		'php': /\{\{\{PHP[0-9]+\}\}\}/
+	});
+}
+
+(function() {
+
+if (typeof self === 'undefined' || !self.Prism || !self.document) {
+	return;
+}
+
+Prism.hooks.add('complete', function (env) {
+	if (!env.code) {
+		return;
+	}
+
+	// works only for <code> wrapped inside <pre> (not inline)
+	var pre = env.element.parentNode;
+	var clsReg = /\s*\bline-numbers\b\s*/;
+	if (
+		!pre || !/pre/i.test(pre.nodeName) ||
+			// Abort only if nor the <pre> nor the <code> have the class
+		(!clsReg.test(pre.className) && !clsReg.test(env.element.className))
+	) {
+		return;
+	}
+
+	if (env.element.querySelector(".line-numbers-rows")) {
+		// Abort if line numbers already exists
+		return;
+	}
+
+	if (clsReg.test(env.element.className)) {
+		// Remove the class "line-numbers" from the <code>
+		env.element.className = env.element.className.replace(clsReg, '');
+	}
+	if (!clsReg.test(pre.className)) {
+		// Add the class "line-numbers" to the <pre>
+		pre.className += ' line-numbers';
+	}
+
+	var match = env.code.match(/\n(?!$)/g);
+	var linesNum = match ? match.length + 1 : 1;
+	var lineNumbersWrapper;
+
+	var lines = new Array(linesNum + 1);
+	lines = lines.join('<span></span>');
+
+	lineNumbersWrapper = document.createElement('span');
+	lineNumbersWrapper.className = 'line-numbers-rows';
+	lineNumbersWrapper.innerHTML = lines;
+
+	if (pre.hasAttribute('data-start')) {
+		pre.style.counterReset = 'linenumber ' + (parseInt(pre.getAttribute('data-start'), 10) - 1);
+	}
+
+	env.element.appendChild(lineNumbersWrapper);
+
+});
+
+}());
+/*!
+	Autosize 3.0.14
+	license: MIT
+	http://www.jacklmoore.com/autosize
+*/
+(function (global, factory) {
+	if (typeof define === 'function' && define.amd) {
+		define(['exports', 'module'], factory);
+	} else if (typeof exports !== 'undefined' && typeof module !== 'undefined') {
+		factory(exports, module);
+	} else {
+		var mod = {
+			exports: {}
+		};
+		factory(mod.exports, mod);
+		global.autosize = mod.exports;
+	}
+})(this, function (exports, module) {
+	'use strict';
+
+	var set = typeof Set === 'function' ? new Set() : (function () {
+		var list = [];
+
+		return {
+			has: function has(key) {
+				return Boolean(list.indexOf(key) > -1);
+			},
+			add: function add(key) {
+				list.push(key);
+			},
+			'delete': function _delete(key) {
+				list.splice(list.indexOf(key), 1);
+			} };
+	})();
+
+	function assign(ta) {
+		var _ref = arguments[1] === undefined ? {} : arguments[1];
+
+		var _ref$setOverflowX = _ref.setOverflowX;
+		var setOverflowX = _ref$setOverflowX === undefined ? true : _ref$setOverflowX;
+		var _ref$setOverflowY = _ref.setOverflowY;
+		var setOverflowY = _ref$setOverflowY === undefined ? true : _ref$setOverflowY;
+
+		if (!ta || !ta.nodeName || ta.nodeName !== 'TEXTAREA' || set.has(ta)) return;
+
+		var heightOffset = null;
+		var overflowY = null;
+		var clientWidth = ta.clientWidth;
+
+		function init() {
+			var style = window.getComputedStyle(ta, null);
+
+			overflowY = style.overflowY;
+
+			if (style.resize === 'vertical') {
+				ta.style.resize = 'none';
+			} else if (style.resize === 'both') {
+				ta.style.resize = 'horizontal';
+			}
+
+			if (style.boxSizing === 'content-box') {
+				heightOffset = -(parseFloat(style.paddingTop) + parseFloat(style.paddingBottom));
+			} else {
+				heightOffset = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
+			}
+			// Fix when a textarea is not on document body and heightOffset is Not a Number
+			if (isNaN(heightOffset)) {
+				heightOffset = 0;
+			}
+
+			update();
+		}
+
+		function changeOverflow(value) {
+			{
+				// Chrome/Safari-specific fix:
+				// When the textarea y-overflow is hidden, Chrome/Safari do not reflow the text to account for the space
+				// made available by removing the scrollbar. The following forces the necessary text reflow.
+				var width = ta.style.width;
+				ta.style.width = '0px';
+				// Force reflow:
+				/* jshint ignore:start */
+				ta.offsetWidth;
+				/* jshint ignore:end */
+				ta.style.width = width;
+			}
+
+			overflowY = value;
+
+			if (setOverflowY) {
+				ta.style.overflowY = value;
+			}
+
+			resize();
+		}
+
+		function resize() {
+			var htmlTop = window.pageYOffset;
+			var bodyTop = document.body.scrollTop;
+			var originalHeight = ta.style.height;
+
+			ta.style.height = 'auto';
+
+			var endHeight = ta.scrollHeight + heightOffset;
+
+			if (ta.scrollHeight === 0) {
+				// If the scrollHeight is 0, then the element probably has display:none or is detached from the DOM.
+				ta.style.height = originalHeight;
+				return;
+			}
+
+			ta.style.height = endHeight + 'px';
+
+			// used to check if an update is actually necessary on window.resize
+			clientWidth = ta.clientWidth;
+
+			// prevents scroll-position jumping
+			document.documentElement.scrollTop = htmlTop;
+			document.body.scrollTop = bodyTop;
+		}
+
+		function update() {
+			var startHeight = ta.style.height;
+
+			resize();
+
+			var style = window.getComputedStyle(ta, null);
+
+			if (style.height !== ta.style.height) {
+				if (overflowY !== 'visible') {
+					changeOverflow('visible');
+				}
+			} else {
+				if (overflowY !== 'hidden') {
+					changeOverflow('hidden');
+				}
+			}
+
+			if (startHeight !== ta.style.height) {
+				var evt = document.createEvent('Event');
+				evt.initEvent('autosize:resized', true, false);
+				ta.dispatchEvent(evt);
+			}
+		}
+
+		var pageResize = function pageResize() {
+			if (ta.clientWidth !== clientWidth) {
+				update();
+			}
+		};
+
+		var destroy = (function (style) {
+			window.removeEventListener('resize', pageResize, false);
+			ta.removeEventListener('input', update, false);
+			ta.removeEventListener('keyup', update, false);
+			ta.removeEventListener('autosize:destroy', destroy, false);
+			ta.removeEventListener('autosize:update', update, false);
+			set['delete'](ta);
+
+			Object.keys(style).forEach(function (key) {
+				ta.style[key] = style[key];
+			});
+		}).bind(ta, {
+			height: ta.style.height,
+			resize: ta.style.resize,
+			overflowY: ta.style.overflowY,
+			overflowX: ta.style.overflowX,
+			wordWrap: ta.style.wordWrap });
+
+		ta.addEventListener('autosize:destroy', destroy, false);
+
+		// IE9 does not fire onpropertychange or oninput for deletions,
+		// so binding to onkeyup to catch most of those events.
+		// There is no way that I know of to detect something like 'cut' in IE9.
+		if ('onpropertychange' in ta && 'oninput' in ta) {
+			ta.addEventListener('keyup', update, false);
+		}
+
+		window.addEventListener('resize', pageResize, false);
+		ta.addEventListener('input', update, false);
+		ta.addEventListener('autosize:update', update, false);
+		set.add(ta);
+
+		if (setOverflowX) {
+			ta.style.overflowX = 'hidden';
+			ta.style.wordWrap = 'break-word';
+		}
+
+		init();
+	}
+
+	function destroy(ta) {
+		if (!(ta && ta.nodeName && ta.nodeName === 'TEXTAREA')) return;
+		var evt = document.createEvent('Event');
+		evt.initEvent('autosize:destroy', true, false);
+		ta.dispatchEvent(evt);
+	}
+
+	function update(ta) {
+		if (!(ta && ta.nodeName && ta.nodeName === 'TEXTAREA')) return;
+		var evt = document.createEvent('Event');
+		evt.initEvent('autosize:update', true, false);
+		ta.dispatchEvent(evt);
+	}
+
+	var autosize = null;
+
+	// Do nothing in Node.js environment and IE8 (or lower)
+	if (typeof window === 'undefined' || typeof window.getComputedStyle !== 'function') {
+		autosize = function (el) {
+			return el;
+		};
+		autosize.destroy = function (el) {
+			return el;
+		};
+		autosize.update = function (el) {
+			return el;
+		};
+	} else {
+		autosize = function (el, options) {
+			if (el) {
+				Array.prototype.forEach.call(el.length ? el : [el], function (x) {
+					return assign(x, options);
+				});
+			}
+			return el;
+		};
+		autosize.destroy = function (el) {
+			if (el) {
+				Array.prototype.forEach.call(el.length ? el : [el], destroy);
+			}
+			return el;
+		};
+		autosize.update = function (el) {
+			if (el) {
+				Array.prototype.forEach.call(el.length ? el : [el], update);
+			}
+			return el;
+		};
+	}
+
+	module.exports = autosize;
+});
 /*! Hammer.JS - v2.0.4 - 2014-09-28
  * http://hammerjs.github.io/
  *
@@ -23316,17 +31653,6 @@ if (typeof define == TYPE_FUNCTION && define.amd) {
 
 })(window, document, 'Hammer');
 
-/* Calculate Scrollbar Width (http://chris-spittles.co.uk/jquery-calculate-scrollbar-width/) */
-;
-function scrollbarWidth() {
-    var a = jQuery('<div style="width: 100%; height:200px;">test</div>'), b = jQuery('<div style="width:200px;height:150px; position: absolute; top: 0; left: 0; visibility: hidden; overflow:hidden;"></div>').append(a), c = a[0], a = b[0];
-    jQuery("body").append(a);
-    c = c.offsetWidth;
-    b.css("overflow", "scroll");
-    a = a.clientWidth;
-    b.remove();
-    return c - a
-};
 /*
  * debouncedresize: special jQuery event that happens once after a window resize
  *
