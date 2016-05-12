@@ -1,3 +1,8 @@
+language: node_js
+node_js:
+  - "0.12.5"
 before_script:
+  - npm install -g bower
   - npm install -g gulp
-script: gulp
+  - bower install
+  - gulp release
