@@ -15,6 +15,3 @@ deploy:
   upload-dir: travis-builds
   region: ap-southeast-1
   local_dir: zip
- notifications:
-  email:
-    - kishore.sanke@gmail.com
