@@ -356,6 +356,11 @@ gulp.task('default', function(callback) {
     );
 });
 
+gulp.task('zip', function() {
+    return gulp.src('_release/2.1.0/altair_v2.1.0/admin/angular/**')
+        .pipe(plugins.zip('release.zip'))
+        .pipe(gulp.dest('zip'));
+});
 
 // 8. -------------------- RELEASE --------------------------
 
@@ -615,6 +620,8 @@ gulp.task('release',function(callback){
         ['release_dist_copy','release_angular_copy','release_src_copy'],
         ['release_app_demo'],
         ['release_replace_images','release_cleanup','release_header_js'],
+        ['zip'],
+        ['release_clean'],
         callback
     );
 });
