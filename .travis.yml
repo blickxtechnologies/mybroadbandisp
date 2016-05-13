@@ -6,12 +6,3 @@ before_script:
   - npm install -g gulp
   - bower install
 script: gulp release
-deploy:
-  provider: s3
-  access_key_id: "AKIAJCBF23VPVUIQLU6A"
-  secret_access_key: "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"
-  bucket: "mybroadbandui"
-  skip_cleanup: true
-  upload-dir: travis-builds
-  region: ap-southeast-1
-  local_dir: zip
